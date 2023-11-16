@@ -22,7 +22,8 @@
     "xmlbuilder2": "^3.1.1"
   },
   "scripts": {
-    "start": "forever -c \"nodemon --exitcrash\" src/app.js"
+    "start": "forever src/app.js",
+    "start:watch": "nodemon src/app.js"
   },
   "devDependencies": {
     "loadtest": "^8.0.5"
