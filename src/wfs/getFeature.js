@@ -11,8 +11,6 @@ function mapFeature (serverUrl, feature) {
   }
 }
 
-// TODO: support bbox & count parameters
-
 /**
  * @param {express.Request} req
  * @param {express.Response} res
@@ -26,7 +24,7 @@ export async function wfsGetFeature (req, res) {
     return
   }
 
-  const { typeNames, bbox, outputFormat } = parsed
+  const { typeNames, bbox, outputFormat, count } = parsed
 
   let queryParams = {}
   let n = 0
@@ -35,15 +33,45 @@ export async function wfsGetFeature (req, res) {
   }
   let querySql = typeNames.map((t, i) => `$param${i}`).join(',')
 
+  // Handle optional query parameters
+  let optParams = []
+  if (bbox) {
+    optParams.push(`AND x > ${bbox[0]} AND y > ${bbox[1]} AND x < ${bbox[2]} AND y < ${bbox[3]}`)
+  } 
+  if (count) {
+    // Ensure that limit is the last parameter pushed to the `optParams` array
+    optParams.push(`LIMIT ${count}`)
+  } 
+
   let features = []
+  let numberMatched = null
   if (true) {
     features = await dataSource.queryFeaturePackage(/* sql */`
       SELECT *
       FROM all_features
       WHERE featureset IN (${querySql})
+      ${optParams.join(' ')}
     `, {
       ...queryParams
     })
+    
+    if (count && bbox) {
+      // It is possible for features matched to differ from the features returned
+      // This additional query returns the total number of features which match the request parameters
+      let limit = optParams.pop()
+      numberMatched = await dataSource.queryFeaturePackage(/* sql */`
+      SELECT COUNT(*)
+      FROM all_features
+      WHERE featureset IN (${querySql}) 
+      ${optParams.join(' ')}
+    `, {
+      ...queryParams
+    })
+    numberMatched = numberMatched[0]['COUNT(*)']
+    optParams.push(limit)
+    } else {
+      numberMatched = features.length
+    }
   }
 
   // add URL properties to the features
@@ -85,8 +113,8 @@ export async function wfsGetFeature (req, res) {
         '@xmlns:wfs': "http://www.opengis.net/wfs/2.0",
         '@xmlns:gml': "http://www.opengis.net/gml/3.2",
         '@xmlns:xsi': `http://www.w3.org/2001/XMLSchema-instance ${serverUrl}/?SERVICE=WFS&VERSION=2.0.0&REQUEST=DescribeFeatureType&TYPENAME=plans`,
-        'numberReturned': features.length,
-        'numberMatched': features.length,
+        '@numberReturned': features.length,
+        '@numberMatched': numberMatched,
         '#': [
           ...features.map(feature => {
             // NOTE: We assume all features (regardless of they are) have an id and featureset property.
