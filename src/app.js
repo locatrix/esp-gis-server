@@ -83,7 +83,7 @@ app.use((req, res, next) => {
 })
 
 app.use((req, res, next) => {
-  console.info(req.method, req.protocol, req.hostname, req.originalUrl)
+  console.info(req.method, req.protocol, req.hostname, req.originalUrl, req.body)
   next();
 })
 

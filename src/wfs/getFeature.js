@@ -11,8 +11,6 @@ function mapFeature (serverUrl, feature) {
   }
 }
 
-// TODO: support bbox & count parameters
-
 /**
  * @param {express.Request} req
  * @param {express.Response} res
@@ -26,24 +24,51 @@ export async function wfsGetFeature (req, res) {
     return
   }
 
-  const { typeNames, bbox, outputFormat } = parsed
+  const { typeNames, bbox, outputFormat, count } = parsed
 
+  // FeatureSet Params
   let queryParams = {}
   let n = 0
   for (let typeName of typeNames) {
     queryParams[`$param${n++}`] = typeName
   }
-  let querySql = typeNames.map((t, i) => `$param${i}`).join(',')
+  const featureSets = typeNames.map((t, i) => `$param${i}`).join(',')
 
-  let features = []
-  if (true) {
-    features = await dataSource.queryFeaturePackage(/* sql */`
-      SELECT *
+  // Bounding Box Params
+  if (bbox != null) {
+    for (let i = 0; i < bbox.length; i++) {
+      queryParams[`$bbox${i}`] = bbox[i]
+    }
+  }
+
+  // Count Param
+  if (count != null) {
+    queryParams[`$count`] = count
+  }
+
+  let features = await dataSource.queryFeaturePackage(/* sql */`
+    SELECT *
+    FROM all_features
+    WHERE featureset IN (${featureSets})
+    ${bbox != null ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
+    ${count != null ? 'LIMIT $count' : ''}
+  `, {
+    ...queryParams
+  })
+
+  let numberMatched = features.length
+  if (count != null) {
+    // It is possible for features matched to differ from the features returned
+    // This additional query returns the total number of features which match the request parameters
+    const totalCountResult = await dataSource.queryFeaturePackage(/* sql */`
+      SELECT COUNT(*) AS totalCount
       FROM all_features
-      WHERE featureset IN (${querySql})
+      WHERE featureset IN (${featureSets})
+      ${bbox != null ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
     `, {
       ...queryParams
     })
+    numberMatched = totalCountResult[0]['totalCount']
   }
 
   // add URL properties to the features
@@ -85,8 +110,8 @@ export async function wfsGetFeature (req, res) {
         '@xmlns:wfs': "http://www.opengis.net/wfs/2.0",
         '@xmlns:gml': "http://www.opengis.net/gml/3.2",
         '@xmlns:xsi': `http://www.w3.org/2001/XMLSchema-instance ${serverUrl}/?SERVICE=WFS&VERSION=2.0.0&REQUEST=DescribeFeatureType&TYPENAME=plans`,
-        'numberReturned': features.length,
-        'numberMatched': features.length,
+        '@numberReturned': features.length,
+        '@numberMatched': numberMatched,
         '#': [
           ...features.map(feature => {
             // NOTE: We assume all features (regardless of they are) have an id and featureset property.
@@ -129,5 +154,3 @@ export async function wfsGetFeature (req, res) {
     res.send(xml)
   }
 }
-
-

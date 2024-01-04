@@ -81,9 +81,21 @@ export function parseWfsParams (req, res) {
     }
   }
 
+  let count = null
+  if (req.query.count != null) {
+    count = parseInt(req.query.count.toString())
+    if (count < 0 || Number.isNaN(count)) {
+      res.status(400)
+      res.set('Content-Type', 'text/plain')
+      res.send('Invalid count')
+      return null
+    }
+  }
+
   return {
     typeNames,
     bbox,
-    outputFormat
+    outputFormat,
+    count
   }
 }

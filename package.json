@@ -16,13 +16,13 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "forever": "^4.0.3",
     "nodemon": "^3.0.1",
     "sqlite3": "^5.1.6",
     "xmlbuilder2": "^3.1.1"
   },
   "scripts": {
-    "start": "forever -c \"nodemon --exitcrash\" src/app.js"
+    "start": "node src/app.js",
+    "start:watch": "nodemon src/app.js"
   },
   "devDependencies": {
     "loadtest": "^8.0.5"
