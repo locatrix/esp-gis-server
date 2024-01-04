@@ -3,6 +3,7 @@ import { convert, create } from 'xmlbuilder2'
 import { getCurrentDataSource } from '../data-sources/currentDataSource.js'
 import { EXCLUDED_WFS_COLUMNS } from './excluded.js'
 import { parseWfsParams } from './parseParams.js'
+import { getServerUrl } from '../util/serverUrl.js'
 
 function mapFeature (serverUrl, feature) {
   return {
@@ -72,7 +73,7 @@ export async function wfsGetFeature (req, res) {
   }
 
   // add URL properties to the features
-  const serverUrl = `${req.protocol}://${req.get('host')}`
+  const serverUrl = getServerUrl(req)
   features = features.map(f => mapFeature(serverUrl, f))
 
   if (outputFormat === 'GEOJSON') {

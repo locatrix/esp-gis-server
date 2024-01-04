@@ -1,7 +1,13 @@
 
 (async function () {
+    const selectElem = document.getElementById('layer-select')
+
+    // handles situations when the esp-gis-server is hosted within a folder
+    const wmtsPath = location.pathname.replace('/viewer', '/wmts')
+    const coveragePath = location.pathname.replace('/viewer', '/coverage')
+
     const getCoverage = async (zoom, x, y) => {
-        const resp = await fetch(`/coverage/${zoom}/${x}/${y}`)
+        const resp = await fetch(`${coveragePath}/${zoom}/${x}/${y}`)
         const tilesets = await resp.json()
         return tilesets
     }
@@ -19,17 +25,22 @@
     }).addTo(map);
 
     let selectedLayer = `LocatrixESPCoverage`
-    let packageLayer = new L.TileLayer(`/wmts/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
+    let packageLayer = new L.TileLayer(`${wmtsPath}/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
 
 	document.getElementById('layer-select').addEventListener('change', e => {
 		selectedLayer = e.target.value
 		packageLayer.remove()
-        packageLayer = new L.TileLayer(`/wmts/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
+        packageLayer = new L.TileLayer(`${wmtsPath}/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
 	})
 
     document.getElementById('copy-wmts-url-btn').addEventListener('click', e => {
-		navigator.clipboard.writeText(`${location.protocol}//${location.host}/wmts/${selectedLayer}/capabilities.xml`)
+		navigator.clipboard.writeText(`${location.protocol}//${location.host}${wmtsPath}/${selectedLayer}/capabilities.xml`)
 	})
+
+    if (navigator.clipboard == null) {
+        console.log('Clipboard is unavailable, disabling WMTS URL button')
+        document.getElementById('copy-wmts-url-btn').parentElement.removeChild(document.getElementById('copy-wmts-url-btn'))
+    }
 
 	const onUpdateLayerSelector = async () => {
 		const currZoom = Math.ceil(map.getZoom())
@@ -46,7 +57,6 @@
 
         layers.unshift('LocatrixESPCoverage')
 
-        const selectElem = document.getElementById('layer-select')
         selectElem.innerHTML = ''
 
         let didSelect = false
@@ -67,7 +77,7 @@
             selectedLayer = 'LocatrixESPCoverage'
 
             packageLayer.remove()
-            packageLayer = new L.TileLayer(`/wmts/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
+            packageLayer = new L.TileLayer(`${wmtsPath}/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
         }
 	}
 
@@ -123,7 +133,7 @@
                 selectedLayer = value
                 selectElem.value = value
                 packageLayer.remove()
-                packageLayer = new L.TileLayer(`/wmts/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
+                packageLayer = new L.TileLayer(`${wmtsPath}/${selectedLayer}/{z}/{x}/{y}.png`, { maxNativeZoom: 22, maxZoom: 22 }).addTo(map)
             }
         }
     }

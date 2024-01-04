@@ -9,6 +9,7 @@ import { registerWfsEndpoints } from './wfs/index.js'
 import { registerWmtsEndpoints } from './wmts/index.js'
 import { asyncHandler } from './util/asyncHandler.js'
 import { getCoverage } from './coverage/coverage.js'
+import { URL_PREFIX } from './util/serverUrl.js'
 
 // monkey-patch the global console object to configure log levels.
 // the log level hierarchy is:
@@ -61,7 +62,7 @@ global.console = {
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url))
 
 const app = express()
-const port = 3000
+const port = process.env.PORT ?? 3000
 
 app.enable('trust proxy')
 app.disable('etag')
@@ -89,13 +90,13 @@ app.use((req, res, next) => {
 
 registerWmtsEndpoints(app)
 registerWfsEndpoints(app)
-app.get('/coverage/:tileMatrix/:tileCol/:tileRow', asyncHandler(getCoverage))
+app.get(URL_PREFIX + '/coverage/:tileMatrix/:tileCol/:tileRow', asyncHandler(getCoverage))
 
-app.get('/viewer', (req, res, next) => {
+app.get(URL_PREFIX + '/viewer', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'viewer/viewer.html'))
 })
 
-app.use('/viewer-public', express.static(path.join(__dirname, 'viewer/public')))
+app.use(URL_PREFIX + '/viewer-public', express.static(path.join(__dirname, 'viewer/public')))
 
 getCurrentDataSource().refresh(true).then(() => {
   app.listen(port, () => {

@@ -2,6 +2,7 @@ import express from 'express'
 import { convert, create } from 'xmlbuilder2'
 import { getCurrentDataSource } from '../data-sources/currentDataSource.js'
 import { CONTACT_PERSON, CONTACT_ROLE } from '../util/contactDetails.js'
+import { getServerUrl } from '../util/serverUrl.js'
 
 /**
  * @param {express.Request} req
@@ -25,8 +26,6 @@ export async function wmtsGetCapabilities (req, res) {
   if (req.params.layer !== null) {
     renderedLayers = renderedLayers.filter(l => l.safeName === req.params.layer)
   }
-
-  const serverUrl = `${req.protocol}://${req.get('host')}`
 
   const googleTileSetMatrixXmlStr = `
     <TileMatrixSet>
@@ -331,7 +330,7 @@ export async function wmtsGetCapabilities (req, res) {
                 'ResourceURL': {
                   '@format': 'image/png',
                   '@resourceType': 'tile',
-                  '@template': `${serverUrl}/wmts/${ts.safeName}/{TileMatrix}/{TileCol}/{TileRow}.png`
+                  '@template': `${getServerUrl(req)}/${ts.safeName}/{TileMatrix}/{TileCol}/{TileRow}.png`
                 }
               }
             }

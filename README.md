@@ -22,6 +22,8 @@ docker run --rm -it -p 3000:3000 --env ESP_GIS_DATA_SOURCE=filesystem --env ESP_
 ### Running locally using Node
 If you don't want to use Docker, you'll need to install Node 18 (or newer) and Yarn.
 
+#### Cloning/installing dependencies
+
 ```bash
 # install yarn (if you don't already have it installed)
 npm install --global yarn
@@ -33,6 +35,24 @@ cd esp-gis-server
 
 # install dependencies
 yarn install
+```
+
+ESP GIS Server is configured via environment variables, so you'll need to set those before trying to run anything:
+
+#### Setting environment variables on macOS/Linux
+```bash
+export ESP_GIS_DATA_SOURCE=filesystem
+export ESP_GIS_FOLDER=/path/to/geopackages/folder
+```
+
+#### Setting environment variables on Windows
+```powershell
+$env:ESP_GIS_DATA_SOURCE="filesystem"
+$env:ESP_GIS_FOLDER="/path/to/geopackages/folder"
+```
+
+#### Running ESP GIS Server
+```bash
 yarn start
 ```
 
@@ -49,6 +69,9 @@ Once the server is running, the following URLs can be used:
 We recommend using Azure Container Apps or Amazon ECS to run ESP GIS Server in production. Both offerings provide consumption-based pricing, meaning that you are only charged for bandwidth + resource usage per request (not a fixed rate per hour/month).
 
 IP-based restrictions can be applied to ensure that only authorised traffic is able to access ESP GIS Server.
+
+#### Using IIS
+You can host the ESP GIS Server with IIS, using [iisnode](https://github.com/Azure/iisnode). An example of how to configure this can be found [here](https://github.com/locatrix/esp-gis-server/blob/main/iis-example/README.md).
 
 #### Scaling
 ESP GIS Server is designed to scale horizontally instead of vertically. Due to the server only needing read-only access to data, it's possible to horizontally scale the server without any additional configuration.

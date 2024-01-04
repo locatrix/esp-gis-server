@@ -2,6 +2,7 @@ import express from 'express'
 import { convert, create } from 'xmlbuilder2'
 import { getCurrentDataSource } from '../data-sources/currentDataSource.js'
 import { CONTACT_PERSON, CONTACT_ROLE } from '../util/contactDetails.js'
+import { getServerUrl } from '../util/serverUrl.js'
 
 const WFS_SERVER_OPERATIONS = [
   {
@@ -51,7 +52,6 @@ export async function wfsGetCapabilities(req, res) {
   `)
 
   const featureSets = rows.map(r => r.featureset).sort()
-  const serverUrl = `${req.protocol}://${req.get('host')}`
 
   const obj = {
     'wfs:WFS_Capabilities': {
@@ -109,10 +109,10 @@ export async function wfsGetCapabilities(req, res) {
                 'ows:DCP': {
                   'ows:HTTP': {
                     'ows:Get': {
-                      '@xlink:href': `${serverUrl}/wfs?`
+                      '@xlink:href': `${getServerUrl(req)}/wfs?`
                     },
                     'ows:Post': {
-                      '@xlink:href': `${serverUrl}/wfs`
+                      '@xlink:href': `${getServerUrl(req)}/wfs`
                     }
                   }
                 },
