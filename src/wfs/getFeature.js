@@ -26,12 +26,13 @@ export async function wfsGetFeature (req, res) {
 
   const { typeNames, bbox, outputFormat, count } = parsed
 
+  // FeatureSet Params
   let queryParams = {}
   let n = 0
   for (let typeName of typeNames) {
     queryParams[`$param${n++}`] = typeName
   }
-  let featureSets = typeNames.map((t, i) => `$param${i}`).join(',')
+  const featureSets = typeNames.map((t, i) => `$param${i}`).join(',')
 
   // Bounding Box Params
   if (bbox != null) {
@@ -45,33 +46,29 @@ export async function wfsGetFeature (req, res) {
     queryParams[`$count`] = count
   }
 
-  let features = []
-  let numberMatched = null
-
-  features = await dataSource.queryFeaturePackage(/* sql */`
+  let features = await dataSource.queryFeaturePackage(/* sql */`
     SELECT *
     FROM all_features
     WHERE featureset IN (${featureSets})
-    ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
-    ${count ? 'LIMIT $count' : ''}
+    ${bbox != null ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
+    ${count != null ? 'LIMIT $count' : ''}
   `, {
     ...queryParams
   })
 
-  if (count || bbox) {
+  let numberMatched = features.length
+  if (count != null) {
     // It is possible for features matched to differ from the features returned
     // This additional query returns the total number of features which match the request parameters
-    numberMatched = await dataSource.queryFeaturePackage(/* sql */`
-    SELECT COUNT(*) AS COUNT
-    FROM all_features
-    WHERE featureset IN (${featureSets})
-    ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
-  `, {
-    ...queryParams
-  })
-  numberMatched = numberMatched[0]['COUNT']
-  } else {
-    numberMatched = features.length
+    const totalCountResult = await dataSource.queryFeaturePackage(/* sql */`
+      SELECT COUNT(*) AS totalCount
+      FROM all_features
+      WHERE featureset IN (${featureSets})
+      ${bbox != null ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
+    `, {
+      ...queryParams
+    })
+    numberMatched = totalCountResult[0]['totalCount']
   }
 
   // add URL properties to the features
