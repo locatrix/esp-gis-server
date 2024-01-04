@@ -31,17 +31,19 @@ export async function wfsGetFeature (req, res) {
   for (let typeName of typeNames) {
     queryParams[`$param${n++}`] = typeName
   }
-  let querySql = typeNames.map((t, i) => `$param${i}`).join(',')
+  let featuresets = typeNames.map((t, i) => `$param${i}`).join(',')
 
-  // Handle optional query parameters
-  let optParams = []
+  // Bounding Box Params
   if (bbox) {
-    optParams.push(`AND x > ${bbox[0]} AND y > ${bbox[1]} AND x < ${bbox[2]} AND y < ${bbox[3]}`)
-  } 
+    for (let i = 0; i < bbox.length; i++) {
+      queryParams[`$bbox${i}`] = bbox[i]
+    }
+  }
+
+  // Count Param
   if (count) {
-    // Ensure that limit is the last parameter pushed to the `optParams` array
-    optParams.push(`LIMIT ${count}`)
-  } 
+    queryParams[`$count`] = count
+  }
 
   let features = []
   let numberMatched = null
@@ -49,26 +51,25 @@ export async function wfsGetFeature (req, res) {
     features = await dataSource.queryFeaturePackage(/* sql */`
       SELECT *
       FROM all_features
-      WHERE featureset IN (${querySql})
-      ${optParams.join(' ')}
+      WHERE featureset IN (${featuresets})
+      ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
+      ${count ? 'LIMIT $count' : ''}
     `, {
       ...queryParams
     })
-    
-    if (count && bbox) {
+
+    if (count || bbox) {
       // It is possible for features matched to differ from the features returned
       // This additional query returns the total number of features which match the request parameters
-      let limit = optParams.pop()
       numberMatched = await dataSource.queryFeaturePackage(/* sql */`
-      SELECT COUNT(*)
+      SELECT COUNT(*) AS COUNT
       FROM all_features
-      WHERE featureset IN (${querySql}) 
-      ${optParams.join(' ')}
+      WHERE featureset IN (${featuresets})
+      ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
     `, {
       ...queryParams
     })
-    numberMatched = numberMatched[0]['COUNT(*)']
-    optParams.push(limit)
+    numberMatched = numberMatched[0]['COUNT']
     } else {
       numberMatched = features.length
     }
@@ -157,5 +158,3 @@ export async function wfsGetFeature (req, res) {
     res.send(xml)
   }
 }
-
-
