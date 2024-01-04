@@ -31,48 +31,47 @@ export async function wfsGetFeature (req, res) {
   for (let typeName of typeNames) {
     queryParams[`$param${n++}`] = typeName
   }
-  let featuresets = typeNames.map((t, i) => `$param${i}`).join(',')
+  let featureSets = typeNames.map((t, i) => `$param${i}`).join(',')
 
   // Bounding Box Params
-  if (bbox) {
+  if (bbox != null) {
     for (let i = 0; i < bbox.length; i++) {
       queryParams[`$bbox${i}`] = bbox[i]
     }
   }
 
   // Count Param
-  if (count) {
+  if (count != null) {
     queryParams[`$count`] = count
   }
 
   let features = []
   let numberMatched = null
-  if (true) {
-    features = await dataSource.queryFeaturePackage(/* sql */`
-      SELECT *
-      FROM all_features
-      WHERE featureset IN (${featuresets})
-      ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
-      ${count ? 'LIMIT $count' : ''}
-    `, {
-      ...queryParams
-    })
 
-    if (count || bbox) {
-      // It is possible for features matched to differ from the features returned
-      // This additional query returns the total number of features which match the request parameters
-      numberMatched = await dataSource.queryFeaturePackage(/* sql */`
-      SELECT COUNT(*) AS COUNT
-      FROM all_features
-      WHERE featureset IN (${featuresets})
-      ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
-    `, {
-      ...queryParams
-    })
-    numberMatched = numberMatched[0]['COUNT']
-    } else {
-      numberMatched = features.length
-    }
+  features = await dataSource.queryFeaturePackage(/* sql */`
+    SELECT *
+    FROM all_features
+    WHERE featureset IN (${featureSets})
+    ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
+    ${count ? 'LIMIT $count' : ''}
+  `, {
+    ...queryParams
+  })
+
+  if (count || bbox) {
+    // It is possible for features matched to differ from the features returned
+    // This additional query returns the total number of features which match the request parameters
+    numberMatched = await dataSource.queryFeaturePackage(/* sql */`
+    SELECT COUNT(*) AS COUNT
+    FROM all_features
+    WHERE featureset IN (${featureSets})
+    ${bbox ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
+  `, {
+    ...queryParams
+  })
+  numberMatched = numberMatched[0]['COUNT']
+  } else {
+    numberMatched = features.length
   }
 
   // add URL properties to the features
