@@ -15,7 +15,7 @@ This example uses the [`web.config`](https://github.com/locatrix/esp-gis-server/
 ## Setting up an IIS test environment
 Rather than setting up IIS on your own machine, or setting up a Windows Server VM, you can use Docker on Windows to set up an IIS test environment that can be used to experiment with running ESP GIS Server under IIS.
 
-The following commands are tested under Windows 10, and require your Docker Desktop environment to be 
+The following commands are tested under Windows 10, and require your Docker Desktop environment to be set into Windows mode.
 
 ```powershell
 # install yarn (if you don't already have it installed)
