@@ -9,7 +9,7 @@ import { MAX_SQLITE_FEATURES_CONNECTIONS, MAX_SQLITE_TILES_CONNECTIONS } from '.
 
 /**
  * Implements a data source that reads data from Amazon S3. Requires the
- * PLANSIGHT_GIS_S3_URI env vars to be set to identify which bucket/folder
+ * ESP_GIS_S3_URI env vars to be set to identify which bucket/folder
  * within a bucket contains the GeoPackages. Also requires standard AWS env
  * vars to be set to identify the region/access key/secret key.
  */
@@ -38,11 +38,11 @@ export class S3BucketDataSource extends DataSource {
   constructor () {
     super()
 
-    this.s3Uri = process.env['PLANSIGHT_GIS_S3_URI']
+    this.s3Uri = process.env['ESP_GIS_S3_URI'] ?? process.env['PLANSIGHT_GIS_S3_URI']
     if (this.s3Uri == null) {
       throw new Error(`
         s3-bucket data source doesn't have a URI configured - check
-        that PLANSIGHT_GIS_S3_URI is set
+        that ESP_GIS_S3_URI is set
       `)
     }
 
@@ -50,7 +50,7 @@ export class S3BucketDataSource extends DataSource {
     if (url.protocol !== 's3:') {
       throw new Error(`
         s3-bucket data source doesn't have a valid s3:// URI configured -
-        check PLANSIGHT_GIS_S3_URI
+        check ESP_GIS_S3_URI
       `) 
     }
 

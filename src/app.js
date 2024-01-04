@@ -19,11 +19,11 @@ import { getCoverage } from './coverage/coverage.js'
 //   warn    (console.warn  --> stderr)
 //   error   (console.error --> stderr)
 //
-// so if you set PLANSIGHT_GIS_LOG_LEVEL="debug" then you get all of
-// the log levels, but if you set PLANSIGHT_GIS_LOG_LEVEL="log" then
+// so if you set ESP_GIS_LOG_LEVEL="debug" then you get all of
+// the log levels, but if you set ESP_GIS_LOG_LEVEL="log" then
 // you only get console.log/console.warn/console.error logs.
 const logLevels = ['debug', 'info', 'log', 'warn', 'error']
-const currLogLevel = process.env.PLANSIGHT_GIS_LOG_LEVEL ?? 'log'
+const currLogLevel = process.env.ESP_GIS_LOG_LEVEL ?? process.env.PLANSIGHT_GIS_LOG_LEVEL ?? 'log'
 if (!logLevels.includes(currLogLevel)) {
   throw new Error(`invalid log level: ${currLogLevel}`)
 }

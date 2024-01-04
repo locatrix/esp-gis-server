@@ -10,11 +10,30 @@ This allows you to consume ESP GIS GeoPackages in a self-hosted way, without any
 ## Getting Started
 ESP GIS Server images are distributed via [Docker](https://hub.docker.com/r/locatrix/plansight-gis-server). This makes it easy to run ESP GIS Server with [Docker Desktop](https://www.docker.com/products/docker-desktop/) on your own machine, or provision containerised infrastructure in the cloud to run it in a production setting.
 
-### Running Locally
+Alternatively, you can clone this repository and run ESP GIS Server using Node 18 or newer.
+
+### Running locally using Docker
 With Docker Desktop installed, you can run ESP GIS Server using the following command (replacing `/path/to/geopackages/folder` with the path to the folder where the ESP GeoPackages are stored on your machine):
 
 ```bash
 docker run --rm -it -p 3000:3000 --env ESP_GIS_DATA_SOURCE=filesystem --env ESP_GIS_FOLDER=/gpkgs -v /path/to/geopackages/folder:/gpkgs locatrix/plansight-gis-server
+```
+
+### Running locally using Node
+If you don't want to use Docker, you'll need to install Node 18 (or newer) and Yarn.
+
+```bash
+# install yarn (if you don't already have it installed)
+npm install --global yarn
+
+# checkout esp-gis-server code (skip if you've just downloaded
+# the .zip file from GitHub)
+git clone https://github.com/locatrix/esp-gis-server.git
+cd esp-gis-server
+
+# install dependencies
+yarn install
+yarn start
 ```
 
 Once the server is running, the following URLs can be used:

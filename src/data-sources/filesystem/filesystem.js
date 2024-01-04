@@ -8,7 +8,7 @@ import { Queue } from './Queue.js'
 
 /**
  * Implements a data source that reads data from the filesystem. Requires
- * the PLANSIGHT_GIS_FOLDER env var to be set to a path pointing at the
+ * the ESP_GIS_FOLDER env var to be set to a path pointing at the
  * folder that contains GeoPackages.
  * 
  * Rather than use any connection pooling, local I/O is assumed to be fast
@@ -33,21 +33,21 @@ export class FileSystemDataSource extends DataSource {
   constructor () {
     super()
 
-    this.packagePath = process.env['PLANSIGHT_GIS_FOLDER']
+    this.packagePath = process.env['ESP_GIS_FOLDER'] ?? process.env['PLANSIGHT_GIS_FOLDER']
     if (this.packagePath == null) {
       throw new Error(`
         filesystem data source doesn't have a folder path configured - check
-        that PLANSIGHT_GIS_FOLDER is set
+        that ESP_GIS_FOLDER is set
       `)
     }
 
     const pathStats = fsSync.statSync(this.packagePath, { throwIfNoEntry: false })
     if (pathStats == null) {
-      throw new Error(`the path pointed to by PLANSIGHT_GIS_FOLDER does not exist`)
+      throw new Error(`the path pointed to by ESP_GIS_FOLDER does not exist`)
     }
 
     if (!pathStats.isDirectory()) {
-      throw new Error(`the path pointed to by PLANSIGHT_GIS_FOLDER is not a directory`)
+      throw new Error(`the path pointed to by ESP_GIS_FOLDER is not a directory`)
     }
   }
 
@@ -81,11 +81,11 @@ export class FileSystemDataSource extends DataSource {
     const featuresFile = featureFiles[0]
 
     if (tilesFile == null) {
-      throw new Error(`unable to find tiles GeoPackage in PLANSIGHT_GIS_FOLDER`)
+      throw new Error(`unable to find tiles GeoPackage in ESP_GIS_FOLDER`)
     }
 
     if (featuresFile == null) {
-      throw new Error(`unable to find features GeoPackage in PLANSIGHT_GIS_FOLDER`)
+      throw new Error(`unable to find features GeoPackage in ESP_GIS_FOLDER`)
     }
 
     const tilesPath = path.join(this.packagePath, tilesFile)

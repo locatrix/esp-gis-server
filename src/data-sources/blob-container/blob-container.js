@@ -6,7 +6,7 @@ import { MAX_SQLITE_FEATURES_CONNECTIONS, MAX_SQLITE_TILES_CONNECTIONS } from '.
 
 /**
  * Implements a data source that reads data from Azure Blob Storage.
- * Requires the PLANSIGHT_GIS_BLOB_SAS_URL env var to be set to a URL
+ * Requires the ESP_GIS_BLOB_SAS_URL env var to be set to a URL
  * pointing at the container (or folder in a hierarchical namespace)
  * that contains GeoPackages.
  */
@@ -29,11 +29,11 @@ export class BlobContainerDataSource extends DataSource {
   constructor () {
     super()
 
-    this.sasUrl = process.env['PLANSIGHT_GIS_BLOB_SAS_URL']
+    this.sasUrl = process.env['ESP_GIS_BLOB_SAS_URL'] ?? process.env['PLANSIGHT_GIS_BLOB_SAS_URL']
     if (this.sasUrl == null) {
       throw new Error(`
         blob-container data source doesn't have a SAS URL configured - check
-        that PLANSIGHT_GIS_BLOB_SAS_URL is set
+        that ESP_GIS_BLOB_SAS_URL is set
       `)
     }
   }

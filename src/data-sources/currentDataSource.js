@@ -8,7 +8,7 @@ let currentDataSource = null
 
 /** @returns {DataSource} */
 function createDataSource () {
-  switch (process.env['PLANSIGHT_GIS_DATA_SOURCE']) {
+  switch (process.env['ESP_GIS_DATA_SOURCE'] ?? process.env['PLANSIGHT_GIS_DATA_SOURCE']) {
     case 'filesystem':
       return new FileSystemDataSource()
     case 'blob-container':
@@ -17,7 +17,7 @@ function createDataSource () {
       return new S3BucketDataSource()
     default:
       throw new Error(`
-        unable to create data source - check the PLANSIGHT_GIS_DATA_SOURCE
+        unable to create data source - check the ESP_GIS_DATA_SOURCE
         environment variable (accepted values are: filesystem, blob-container,
         s3-bucket)
       `)
