@@ -2,7 +2,7 @@
 
 This is an example of how to host ESP GIS Server on Windows with IIS.
 
-## Dependencies
+## IIS Dependencies
 When running in production, you'll need to make sure the following are installed onto the server:
 
 - [Node.js 18 or newer](https://nodejs.org/en/download)
@@ -15,7 +15,7 @@ This example uses the [`web.config`](https://github.com/locatrix/esp-gis-server/
 ## Setting up IIS
 
 ### Real server
-On a Windows server, you'll need to ensure the dependencies are installed first and then run the following commands:
+On a Windows server, you'll need to ensure the IIS dependencies listed above are installed first and then run the following commands:
 
 ```powershell
 # install yarn (if you don't already have it installed)
