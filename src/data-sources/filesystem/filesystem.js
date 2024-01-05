@@ -134,6 +134,7 @@ export class FileSystemDataSource extends DataSource {
     await this.tilesDbQueue.request(db => new Promise((resolve, reject) => {
       db.all(sql, params, (err, results) => {
         if (err) {
+          console.error('DB error', err, sql, params)
           reject(err)
           return
         }
@@ -162,6 +163,7 @@ export class FileSystemDataSource extends DataSource {
     await this.featuresDbQueue.request(db => new Promise((resolve, reject) => {
       db.all(sql, params, (err, results) => {
         if (err) {
+          console.error('DB error', err, sql, params)
           reject(err)
           return
         }

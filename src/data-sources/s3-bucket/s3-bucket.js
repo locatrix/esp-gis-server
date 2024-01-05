@@ -184,6 +184,9 @@ export class S3BucketDataSource extends DataSource {
         rows.push(row)
       })
       return rows
+    } catch (err) {
+      console.error('DB error', err, sql, params)
+      throw err
     } finally {
       this.tilesDbPool.releaseDbConnection(conn)
     }
@@ -213,6 +216,9 @@ export class S3BucketDataSource extends DataSource {
         rows.push(row)
       })
       return rows
+    } catch (err) {
+      console.error('DB error', err, sql, params)
+      throw err
     } finally {
       this.featuresDbPool.releaseDbConnection(conn)
     }

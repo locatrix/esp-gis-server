@@ -59,6 +59,11 @@ export async function wfsGetFeature (req, res) {
 
   let numberMatched = features.length
   if (count != null) {
+    // the next query doesn't use the $count param, and sqlite can
+    // error out if you include params that don't match your sql,
+    // so make sure to remove it!
+    const { $count, ...remainingQueryParams } = queryParams
+    
     // It is possible for features matched to differ from the features returned
     // This additional query returns the total number of features which match the request parameters
     const totalCountResult = await dataSource.queryFeaturePackage(/* sql */`
@@ -67,7 +72,7 @@ export async function wfsGetFeature (req, res) {
       WHERE featureset IN (${featureSets})
       ${bbox != null ? 'AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3' : ''}
     `, {
-      ...queryParams
+      ...remainingQueryParams
     })
     numberMatched = totalCountResult[0]['totalCount']
   }
