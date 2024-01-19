@@ -92,10 +92,36 @@ export function parseWfsParams (req, res) {
     }
   }
 
+  let srsName = 'EPSG:3857' // default SRS
+  if (req.query.srsname != null) {
+    srsName = normalizeQueryParam(req.query.srsname)
+
+    // normalize SRS's and ensure they're supported
+    switch (srsName) {
+      case 'EPSG:102100':
+      case 'urn:ogc:def:crs:EPSG::102100':
+      case 'EPSG:3857':
+      case 'urn:ogc:def:crs:EPSG::3857':
+        srsName = 'EPSG:3857'
+        break
+      case 'EPSG:4326':
+      case 'urn:ogc:def:crs:EPSG::4326':
+        srsName = 'EPSG:4326'
+        break
+
+      default:
+        res.status(400)
+        res.set('Content-Type', 'text/plain')
+        res.send(`Unsupported SRS: ${srsName}`)
+        return null
+    }
+  }
+
   return {
     typeNames,
     bbox,
     outputFormat,
-    count
+    count,
+    srsName
   }
 }

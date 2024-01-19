@@ -25,7 +25,7 @@ export async function wfsGetFeature (req, res) {
     return
   }
 
-  const { typeNames, bbox, outputFormat, count } = parsed
+  const { typeNames, bbox, outputFormat, count, srsName } = parsed
 
   // FeatureSet Params
   let queryParams = {}
@@ -90,17 +90,27 @@ export async function wfsGetFeature (req, res) {
         }
 
         for (let key of Object.keys(feature)) {
+          if (key === 'geom') {
+            continue
+          }
+
           properties[key] = `${feature[key]}`
+        }
+
+        let coordinates = [
+          feature.x,
+          feature.y
+        ]
+
+        if (srsName === 'EPSG:4326') {
+          coordinates = [feature.longitude, feature.latitude]
         }
 
         return {
           type: 'Feature',
           geometry: {
             type: 'Point',
-            coordinates: [
-              feature.x,
-              feature.y
-            ]
+            coordinates
           },
           properties
         }
@@ -115,7 +125,7 @@ export async function wfsGetFeature (req, res) {
       'wfs:FeatureCollection': {
         '@xmlns:wfs': "http://www.opengis.net/wfs/2.0",
         '@xmlns:gml': "http://www.opengis.net/gml/3.2",
-        '@xmlns:xsi': `http://www.w3.org/2001/XMLSchema-instance ${serverUrl}/?SERVICE=WFS&VERSION=2.0.0&REQUEST=DescribeFeatureType&TYPENAME=plans`,
+        '@xmlns:xsi': `http://www.w3.org/2001/XMLSchema-instance`,
         '@numberReturned': features.length,
         '@numberMatched': numberMatched,
         '#': [
@@ -131,13 +141,26 @@ export async function wfsGetFeature (req, res) {
               }
 
               if (key === 'geom') {
-                featureXml['wfs:member'][feature.featureset][key] = {
-                  'gml:Point': {
-                    '@srsName': 'urn:ogc:def:crs:EPSG::3857',
-                    '@srsDimension': 2,
-                    '@gml:id': `GmlPoint.${feature.id}`,
-                    'gml:pos': `${feature.x} ${feature.y}`
+                if (srsName === 'EPSG:3857') {
+                  featureXml['wfs:member'][feature.featureset][key] = {
+                    'gml:Point': {
+                      '@srsName': 'urn:ogc:def:crs:EPSG::3857',
+                      '@srsDimension': 2,
+                      '@gml:id': `GmlPoint.${feature.id}`,
+                      'gml:pos': `${feature.x} ${feature.y}`
+                    }
                   }
+                } else if (srsName === 'EPSG:4326') {
+                  featureXml['wfs:member'][feature.featureset][key] = {
+                    'gml:Point': {
+                      '@srsName': 'urn:ogc:def:crs:EPSG::4326',
+                      '@srsDimension': 2,
+                      '@gml:id': `GmlPoint.${feature.id}`,
+                      'gml:pos': `${feature.latitude} ${feature.longitude}`
+                    }
+                  }
+                } else {
+                  throw new Error('unsupported SRS')
                 }
               } else {
                 featureXml['wfs:member'][feature.featureset][key] = `${feature[key]}`
