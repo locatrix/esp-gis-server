@@ -1,6 +1,6 @@
 {
   "name": "plansight-gis-server",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "type": "module",
   "main": "src/app.js",
   "license": "MIT",
