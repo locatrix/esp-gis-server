@@ -143,6 +143,28 @@ ESP_GIS_MAX_SQLITE_FEATURES_CONNECTIONS=4
 ESP_GIS_MAX_SQLITE_CONNECTION_CACHE_SIZE_MB=128
 ```
 
+### Configuring access tokens
+By default, the server does not enforce authentication and expects that network-level security is used. (This is due to the WFS and WMTS protocols not directly supporting any security features.)
+
+You can choose to add a second layer of security by requiring that an access token is provided in URLs. This is configured using environment variables:
+
+```bash
+ESP_GIS_ACCESS_TOKEN_1=<token>
+ESP_GIS_ACCESS_TOKEN_2=<token>
+```
+
+The use of two tokens is to support zero downtime token rotation, where clients can progressively transition to a newer token without immediately breaking older clients still configured to use the older token.
+
+If access tokens are configured, the server's endpoints change to:
+
+| Resource | URL |
+|----------|-----|
+| Web Viewer | [http://localhost:3000/ACCESS_TOKEN/viewer](http://localhost:3000/ACCESS_TOKEN/viewer) |
+| WFS Endpoint | [http://localhost:3000/ACCESS_TOKEN/wfs](http://localhost:3000/ACCESS_TOKEN/wfs) |
+| WMTS Endpoint | [http://localhost:3000/ACCESS_TOKEN/wmts/capabilities.xml](http://localhost:3000/ACCESS_TOKEN/wmts/capabilities.xml) |
+
+If access tokens are used, the server will also ensure that returned URLs in the WFS endpoint include the correct access token so that they remain clickable.
+
 ## Caveats
 
 - ESP GIS Server only works with GeoPackages created by Locatrix - it does not work with standard GeoPackages. This is because the server relies on the special data structure and indices contained in Locatrix-generated GeoPackages to enable efficient querying.

@@ -9,7 +9,7 @@ import { registerWfsEndpoints } from './wfs/index.js'
 import { registerWmtsEndpoints } from './wmts/index.js'
 import { asyncHandler } from './util/asyncHandler.js'
 import { getCoverage } from './coverage/coverage.js'
-import { URL_PREFIX } from './util/serverUrl.js'
+import { accessTokensEnabled, checkToken, getServerUrl, ROUTE_PREFIX } from './util/serverUrl.js'
 
 // monkey-patch the global console object to configure log levels.
 // the log level hierarchy is:
@@ -70,6 +70,18 @@ app.disable('etag')
 app.use(cors())
 app.use(bodyParser.text({ type: ['text/xml', 'application/xml'] }))
 
+// authentication middleware. we can optionally configure the server to require
+// a token to be provided, which if set will be
+app.use((req, res, next) => {
+  if (!checkToken(req)) {
+    res.status(401)
+    res.set('Content-Type', 'text/plain')
+    res.send('401 Unauthorized')
+  } else {
+    next()
+  }
+})
+
 // middleware to normalize all query string params to lowercase
 app.use((req, res, next) => {
   const keys = Object.keys(req.query)
@@ -84,23 +96,58 @@ app.use((req, res, next) => {
 })
 
 app.use((req, res, next) => {
-  console.info(req.method, req.protocol, req.hostname, req.originalUrl, req.body)
+  let url = req.originalUrl
+
+  if (accessTokensEnabled()) {
+    if (process.env.ESP_GIS_ACCESS_TOKEN_1 != null && process.env.ESP_GIS_ACCESS_TOKEN_1 !== '') {
+      url = url.replace(process.env.ESP_GIS_ACCESS_TOKEN_1, '<redacted>')
+    }
+    
+    if (process.env.ESP_GIS_ACCESS_TOKEN_2 != null && process.env.ESP_GIS_ACCESS_TOKEN_2 !== '') {
+      url = url.replace(process.env.ESP_GIS_ACCESS_TOKEN_2, '<redacted>')
+    }
+  }
+
+  console.info(req.method, req.protocol, req.hostname, url, req.body)
   next();
 })
 
 registerWmtsEndpoints(app)
 registerWfsEndpoints(app)
-app.get(URL_PREFIX + '/coverage/:tileMatrix/:tileCol/:tileRow', asyncHandler(getCoverage))
+app.get(ROUTE_PREFIX + '/coverage/:tileMatrix/:tileCol/:tileRow', asyncHandler(getCoverage))
 
-app.get(URL_PREFIX + '/viewer', (req, res, next) => {
+app.get(ROUTE_PREFIX + '/viewer', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'viewer/viewer.html'))
 })
 
-app.use(URL_PREFIX + '/viewer-public', express.static(path.join(__dirname, 'viewer/public')))
+app.use(ROUTE_PREFIX + '/viewer-public', express.static(path.join(__dirname, 'viewer/public')))
+
+app.get(ROUTE_PREFIX + '/', (req, res) => {
+  res.status(200)
+  res.set('Content-Type', 'text/html')
+  res.send(`<!DOCTYPE html>
+<html>
+  <head>
+    <title>ESP GIS Server</title>
+  </head>
+  <body>
+    <h1>ESP GIS Server version ${process.env.npm_package_version}</h1>
+    <h2><a href="${getServerUrl(req)}/viewer">Online Map Viewer</a></h2>
+    <h2><a href="${getServerUrl(req)}/wfs">WFS Endpoint</a></h2>
+    <h2><a href="${getServerUrl(req)}/wmts/capabilities.xml">WMTS Endpoint (all layers)</a></h2>
+    <p>Per-layer WMTS endpoints can be accessed by visiting the Map Viewer and clicking the "Copy WMTS URL" button.</p>
+  </body>
+</html>
+`)
+})
 
 getCurrentDataSource().refresh(true).then(() => {
   app.listen(port, () => {
     console.log(`Listening for HTTP on port ${port}`)
+
+    if (accessTokensEnabled()) {
+      console.log(`Access tokens are enabled.`)
+    }
   })
 })
 
