@@ -67,7 +67,7 @@ const port = process.env.PORT ?? 3000
 app.enable('trust proxy')
 app.disable('etag')
 
-app.use(cors())
+app.use(cors({ origin: true }))
 app.use(bodyParser.text({ type: ['text/xml', 'application/xml'] }))
 
 // authentication middleware. we can optionally configure the server to require
