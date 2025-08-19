@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33927.249
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EspGisViewer", "EspGisViewer\EspGisViewer.csproj", "{FE4E5AB5-2812-49C8-B501-445D45EC621A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EspGisViewer.DiffTests", "EspGisViewer.DiffTests\EspGisViewer.DiffTests.csproj", "{D838AF9A-B490-4743-B576-70C724924C18}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FE4E5AB5-2812-49C8-B501-445D45EC621A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE4E5AB5-2812-49C8-B501-445D45EC621A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE4E5AB5-2812-49C8-B501-445D45EC621A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE4E5AB5-2812-49C8-B501-445D45EC621A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D838AF9A-B490-4743-B576-70C724924C18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D838AF9A-B490-4743-B576-70C724924C18}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D838AF9A-B490-4743-B576-70C724924C18}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D838AF9A-B490-4743-B576-70C724924C18}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FE4D146F-35E4-46F6-8749-3892152B301A}
+	EndGlobalSection
+EndGlobal

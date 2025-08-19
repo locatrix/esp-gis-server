@@ -1,3 +1,104 @@
+# User-specific files (Visual Studio and Rider)
+#--------------------------------------------------------------------------
+*.user
+*.suo
+*.userprefs
+*.csproj.user
+
+# Build Output directories (case-insensitive)
+#--------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+
+# Rider specific configuration files and directories
+#--------------------------------------------------------------------------
+# Covers .idea/.idea.SolutionName, etc.
+.idea*/
+*.iml
+
+# Generated intermediate files and caches
+#--------------------------------------------------------------------------
+*.generated.cs
+*.g.cs
+*.g.i.cs
+*_i.c
+*_p.c
+*.metagen
+Generated_Code/
+
+# NuGet packages folder
+#--------------------------------------------------------------------------
+# NuGet uses a global packages folder by default now, but projects
+# might still have a local packages folder (especially older ones).
+# Add this line if you have a local 'packages' folder you want to ignore.
+packages/
+
+# NuGet package build outputs
+#--------------------------------------------------------------------------
+*.nupkg
+# NuGet symbol packages
+*.snupkg
+
+# Visual Studio specific files and folders
+#--------------------------------------------------------------------------
+.vs/
+*.vcxproj.filters
+*.vcxproj.user
+*_*.log
+*.ncb
+*~
+*.bak
+*.TMP
+*.CACHE
+*.err
+*.ilk
+*.pdb
+*.obj
+*.lib
+*.sbr
+*.tlb
+*.tlh
+*.pch
+*.idb
+*.pdb.meta
+*.VC.db
+*.VC.VC.opendb
+
+# ReSharper / Rider specific files (if used without solution-wide settings)
+#--------------------------------------------------------------------------
+*_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# Test results and coverage reports
+#--------------------------------------------------------------------------
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.[Cc]overage[Rr]esult*
+*.trx
+*.cover
+*.coverprofile
+*.codecoverage
+
+# Deployment/Publish files (often user/environment specific)
+#--------------------------------------------------------------------------
+*.Publish.xml
+*.pubxml
+*.pubxml.user
+*.publishproj
+
+# StyleCop files
+#--------------------------------------------------------------------------
+StyleCopReport.xml
+StyleCop.Cache
+
+# Environment files (often contain secrets or local paths)
+#--------------------------------------------------------------------------
 .env
-.DS_Store
-node_modules
+*.env
+
+# Log files
+#--------------------------------------------------------------------------
+*.log
+*.log.*
+/EspGisViewer/static/viewer
