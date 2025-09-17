@@ -10,6 +10,7 @@ import { registerWmtsEndpoints } from './wmts/index.js'
 import { asyncHandler } from './util/asyncHandler.js'
 import { getCoverage } from './coverage/coverage.js'
 import { accessTokensEnabled, checkToken, getServerUrl, ROUTE_PREFIX } from './util/serverUrl.js'
+import { getBounds } from './bounds/bounds.js'
 
 // monkey-patch the global console object to configure log levels.
 // the log level hierarchy is:
@@ -67,7 +68,7 @@ const port = process.env.PORT ?? 3000
 app.enable('trust proxy')
 app.disable('etag')
 
-app.use(cors({ origin: true }))
+app.use(cors({ origin: true, credentials: true }))
 app.use(bodyParser.text({ type: ['text/xml', 'application/xml'] }))
 
 // authentication middleware. we can optionally configure the server to require
@@ -115,6 +116,7 @@ app.use((req, res, next) => {
 registerWmtsEndpoints(app)
 registerWfsEndpoints(app)
 app.get(ROUTE_PREFIX + '/coverage/:tileMatrix/:tileCol/:tileRow', asyncHandler(getCoverage))
+app.get(ROUTE_PREFIX + '/bounds', asyncHandler(getBounds))
 
 app.get(ROUTE_PREFIX + '/viewer', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'viewer/viewer.html'))

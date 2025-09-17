@@ -3,6 +3,7 @@ import { convert, create } from 'xmlbuilder2'
 import { getCurrentDataSource } from '../data-sources/currentDataSource.js'
 import { CONTACT_PERSON, CONTACT_ROLE } from '../util/contactDetails.js'
 import { getServerUrl } from '../util/serverUrl.js'
+import { getDataBounds } from '../util/bounds.js'
 
 /**
  * @param {express.Request} req
@@ -11,6 +12,8 @@ import { getServerUrl } from '../util/serverUrl.js'
 export async function wmtsGetCapabilities (req, res) {
   const dataSource = getCurrentDataSource()
   await dataSource.refresh(true)
+
+  const bounds = await getDataBounds()
 
   const rows = await dataSource.queryTilesPackage(/* sql */`
     SELECT identifier, table_name
@@ -23,7 +26,8 @@ export async function wmtsGetCapabilities (req, res) {
   // allow scoping the capabilities down if a layer name is given in the URL,
   // which helps work around issues with some map viewers lagging badly when
   // all layers are included.
-  if (req.params.layer !== null) {
+  if (req.params.layer != null) {
+    console.debug(`filtering WMTS to layer: ${req.params.layer}`)
     renderedLayers = renderedLayers.filter(l => l.safeName === req.params.layer)
   }
 
@@ -315,8 +319,8 @@ export async function wmtsGetCapabilities (req, res) {
                 'ows:Identifier': ts.name,
                 'ows:Keywords': null,
                 'ows:WGS84BoundingBox': {
-                  'ows:LowerCorner': '113.503234326 -43.280603544',
-                  'ows:UpperCorner': '153.650786054 -12.274432464'
+                  'ows:LowerCorner': `${bounds.minLongitude} ${bounds.minLatitude}`,
+                  'ows:UpperCorner': `${bounds.maxLongitude} ${bounds.maxLatitude}`
                 },
                 'Style': {
                   '@isDefault': 'true',
@@ -330,7 +334,7 @@ export async function wmtsGetCapabilities (req, res) {
                 'ResourceURL': {
                   '@format': 'image/png',
                   '@resourceType': 'tile',
-                  '@template': `${getServerUrl(req)}/${ts.safeName}/{TileMatrix}/{TileCol}/{TileRow}.png`
+                  '@template': `${getServerUrl(req)}/wmts/${ts.safeName}/{TileMatrix}/{TileCol}/{TileRow}.png`
                 }
               }
             }

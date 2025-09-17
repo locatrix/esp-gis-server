@@ -73,7 +73,10 @@ export class BlobContainerDataSource extends DataSource {
       const name = $('Name', blob).first().text()
       const resourceType = $('ResourceType', blob).first().text()
 
-      if (resourceType !== 'file') {
+      if (resourceType === 'directory') {
+        // resourceType can sometimes be an empty string if the blob storage account doesn't use
+        // hierarchical namespaces, so only skip if we know for sure it's a directory - otherwise
+        // assume it's a file.
         continue
       }
 

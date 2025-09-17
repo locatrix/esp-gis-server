@@ -3,6 +3,7 @@ import { convert, create } from 'xmlbuilder2'
 import { getCurrentDataSource } from '../data-sources/currentDataSource.js'
 import { CONTACT_PERSON, CONTACT_ROLE } from '../util/contactDetails.js'
 import { getServerUrl } from '../util/serverUrl.js'
+import { getDataBounds } from '../util/bounds.js'
 
 const WFS_SERVER_OPERATIONS = [
   {
@@ -45,6 +46,8 @@ const WFS_SERVER_CONSTRAINTS = [
 export async function wfsGetCapabilities(req, res) {
   const dataSource = getCurrentDataSource()
   await dataSource.refresh(true)
+
+  const bounds = await getDataBounds()
 
   const rows = await dataSource.queryFeaturePackage(/* sql */`
     SELECT DISTINCT featureset
@@ -159,8 +162,8 @@ export async function wfsGetCapabilities(req, res) {
                 'wfs:Title': fs,
                 'wfs:DefaultCRS': 'urn:ogc:def:crs:EPSG::3857', // this is just from the example
                 'ows:WGS84BoundingBox': {
-                  'ows:LowerCorner': '113.503234326 -43.280603544',
-                  'ows:UpperCorner': '153.650786054 -12.274432464'
+                  'ows:LowerCorner': `${bounds.minLongitude} ${bounds.minLatitude}`,
+                  'ows:UpperCorner': `${bounds.maxLongitude} ${bounds.maxLatitude}`
                 }
               }
             }

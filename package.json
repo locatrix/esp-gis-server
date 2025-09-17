@@ -1,13 +1,9 @@
 {
   "name": "plansight-gis-server",
-  "version": "0.6.0",
+  "version": "0.6.6",
   "type": "module",
   "main": "src/app.js",
   "license": "MIT",
-  "engines": {
-    "npm": "please-use-yarn",
-    "yarn": ">= 1.19.1"
-  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.449.0",
     "@aws-sdk/s3-request-presigner": "^3.449.0",

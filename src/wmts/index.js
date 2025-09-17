@@ -11,6 +11,8 @@ import { ROUTE_PREFIX } from '../util/serverUrl.js'
 export function registerWmtsEndpoints (app) {
   app.get(ROUTE_PREFIX + '/wmts', asyncHandler(wmtsProxy))
   app.get(ROUTE_PREFIX + '/wmts/capabilities.xml', asyncHandler(wmtsGetCapabilities))
+  app.get(ROUTE_PREFIX + '/wmts/1.0.0/wmtscapabilities.xml', asyncHandler(wmtsGetCapabilities))
+  app.get(ROUTE_PREFIX + '/wmts/1.0.0/capabilities.xml', asyncHandler(wmtsGetCapabilities))
   app.get(ROUTE_PREFIX + '/wmts/:layer/capabilities.xml', asyncHandler(wmtsGetCapabilities))
   app.get(ROUTE_PREFIX + '/wmts/:layer/:tileMatrix/:tileCol/:tileRow.png', asyncHandler(wmtsGetTile))
 }

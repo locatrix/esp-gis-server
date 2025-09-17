@@ -5,6 +5,7 @@
     // handles situations when the esp-gis-server is hosted within a folder
     const wmtsPath = location.pathname.replace('/viewer', '/wmts')
     const coveragePath = location.pathname.replace('/viewer', '/coverage')
+    const boundsPath = location.pathname.replace('/viewer', '/bounds')
 
     const getCoverage = async (zoom, x, y) => {
         const resp = await fetch(`${coveragePath}/${zoom}/${x}/${y}`)
@@ -12,9 +13,20 @@
         return tilesets
     }
 
+    const getBounds = async () => {
+        const resp = await fetch(`${boundsPath}`)
+        const bounds = await resp.json()
+        return bounds
+    }
+
     const L = window['L'] // global leaflet instance
 
-    const map = L.map('map').setView([-25.839449402063185,133.15429687500003], 4);
+    const bounds = await getBounds()
+
+    const map = L.map('map').fitBounds([
+        [bounds.minLatitude, bounds.minLongitude],
+        [bounds.maxLatitude, bounds.maxLongitude]
+    ])
     window['map'] = map
 
     const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
