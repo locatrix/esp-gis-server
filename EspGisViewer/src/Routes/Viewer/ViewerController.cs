@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
-using EspGisViewer.Routing;
 using EspGisViewer.Util;
 
 namespace EspGisViewer.Routes.Viewer
@@ -16,7 +16,7 @@ namespace EspGisViewer.Routes.Viewer
         public Task Handle(HttpContext context, Dictionary<string, string> parameters)
         {
 
-            var filePath = context.Request.Path;
+            string filePath = context.Request.Path;
 
             if (!filePath.Contains("/viewer"))
             {
@@ -27,33 +27,45 @@ namespace EspGisViewer.Routes.Viewer
             int index = filePath.IndexOf("/viewer", StringComparison.Ordinal);
             filePath = filePath.Substring(index);
 
-            // make the path relative to the current directory, and use windows-style paths
-            filePath = StringOps.ReplaceFirstOccurrence(filePath, "/viewer", "/static/viewer");
-            filePath = filePath.TrimStart('/').Replace('/', '\\');
+            // make the paths relative to the current directory
+            var paths = new List<string>();
+            paths.Add(filePath);
+            paths.Add(StringOps.ReplaceFirstOccurrence(filePath, "/viewer", "/static/viewer"));
 
-            // convert to physical path
-            // filePath = System.IO.Path.Combine(context.Server.MapPath("~/bin/"), filePath);
-            filePath = System.IO.Path.Combine(context.Server.MapPath("~/"), filePath);
+            // use windows-style paths
+            paths = paths.Select(p => p.TrimStart('/').Replace('/', System.IO.Path.DirectorySeparatorChar)).ToList();
 
-            // If the file is a directory, we want to check index.html instead
+            // convert to physical paths
+            paths = paths.Select(p => System.IO.Path.Combine(context.Server.MapPath("~/"), p)).ToList();
+
+            if (paths.Any(path => TryPath(context, path)))
+            {
+                context.Response.StatusCode = 200;
+                return Task.CompletedTask;
+            }
+
+            // 404
+            context.Response.StatusCode = 404;
+            context.Response.ContentType = "text/plain";
+            context.Response.Write("Not Found");
+
+            return Task.CompletedTask;
+        }
+
+        private static bool TryPath(HttpContext context, string filePath)
+        {
             if (System.IO.Directory.Exists(filePath))
             {
                 filePath = System.IO.Path.Combine(filePath, "index.html");
             }
-
             if (!System.IO.File.Exists(filePath))
             {
-                // 404
-                context.Response.StatusCode = 404;
-                context.Response.ContentType = "text/plain";
-
-                context.Response.Write("Not Found");
-                return Task.CompletedTask;
+                return false;
             }
 
             // extension to mime type mapping
-            var extension = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
-            var mimeType = "application/octet-stream";
+            string extension = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+            string mimeType = "application/octet-stream";
 
             switch (extension)
             {
@@ -77,7 +89,7 @@ namespace EspGisViewer.Routes.Viewer
             context.Response.ContentType = mimeType;
             context.Response.WriteFile(filePath);
 
-            return Task.CompletedTask;
+            return true;
         }
     }
 }
