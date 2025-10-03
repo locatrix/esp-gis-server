@@ -68,6 +68,9 @@ namespace EspGisViewer.Routes
                 }
             }
 
+            // allow CORS for all origins
+            context.Response.AddHeader("Access-Control-Allow-Origin", "*");
+
             // Dispatch to the router
             return Router.BeginProcessRequest(context, cb, extraData);
         }
