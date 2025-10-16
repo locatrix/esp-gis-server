@@ -31,6 +31,7 @@ namespace EspGisViewer.Routes.Viewer
             var paths = new List<string>();
             paths.Add(filePath);
             paths.Add(StringOps.ReplaceFirstOccurrence(filePath, "/viewer", "/static/viewer"));
+            paths.Add(StringOps.ReplaceFirstOccurrence(filePath, "/viewer", "bin/static/viewer"));
 
             // use windows-style paths
             paths = paths.Select(p => p.TrimStart('/').Replace('/', System.IO.Path.DirectorySeparatorChar)).ToList();
@@ -44,8 +45,7 @@ namespace EspGisViewer.Routes.Viewer
                 return Task.CompletedTask;
             }
 
-            // 404
-            context.Response.StatusCode = 404;
+            context.Response.StatusCode = 500;
             context.Response.ContentType = "text/plain";
             context.Response.Write("Not Found");
 
