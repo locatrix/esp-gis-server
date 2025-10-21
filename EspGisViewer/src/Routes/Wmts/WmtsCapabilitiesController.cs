@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -33,9 +34,24 @@ namespace EspGisViewer.Routes.Wmts
                                                                                  "FROM gpkg_contents " +
                                                                                  "WHERE data_type = 'tiles'", (Dictionary<string, string>) null));
 
-            var param = parameters.TryGetValue("layer", out var layerParam) ? layerParam : "LocatrixEspCoverage";
             var renderedLayers = rows.ToList();
-            renderedLayers.RemoveAll(x => x.SafeName != param);
+
+            if (parameters.TryGetValue("layer", out string param))
+            {
+              renderedLayers.RemoveAll(x => x.SafeName != param);
+            }
+
+            var numbers = renderedLayers.Where(x => int.TryParse(x.Name, out _)).ToList();
+            var strings = renderedLayers.Except(numbers).ToList();
+
+            // sort numbers numerically and strings alphabetically
+            numbers.Sort((a, b) => int.Parse(a.Name).CompareTo(int.Parse(b.Name)));
+            strings.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
+
+            // update renderedLayers
+            renderedLayers = new List<TileName>();
+            renderedLayers.AddRange(strings);
+            renderedLayers.AddRange(numbers);
 
             var layers = "";
             foreach (var layer in renderedLayers)
@@ -53,9 +69,9 @@ namespace EspGisViewer.Routes.Wmts
       </Style>
       <Format>image/png</Format>
       <TileMatrixSetLink>
-        <TileMatrixSet>GoogleMapsCompatibleExt:epsg:3857</TileMatrixSet>
+        <TileMatrixSet>google3857</TileMatrixSet>
       </TileMatrixSetLink>
-      <ResourceURL format=""image/png"" resourceType=""tile"" template=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}{layer.SafeName}/{{TileMatrix}}/{{TileCol}}/{{TileRow}}.png""/>
+      <ResourceURL format=""image/png"" resourceType=""tile"" template=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}wmts/{layer.SafeName}/{{TileMatrix}}/{{TileCol}}/{{TileRow}}.png""/>
     </Layer>";
             }
 
@@ -95,8 +111,9 @@ namespace EspGisViewer.Routes.Wmts
   </ows:ServiceProvider>
   <Contents>" + layers + @"
     <TileMatrixSet>
-      <ows:Identifier>GoogleMapsCompatibleExt:epsg:3857</ows:Identifier>
-      <ows:SupportedCRS>EPSG:3857</ows:SupportedCRS>
+      <ows:Identifier>google3857</ows:Identifier>
+      <ows:SupportedCRS>urn:ogc:def:crs:EPSG:6.18.3:3857</ows:SupportedCRS>
+      <WellKnownScaleSet>urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible</WellKnownScaleSet>
       <TileMatrix>
         <ows:Identifier>0</ows:Identifier>
         <ScaleDenominator>559082264.0287177600000</ScaleDenominator>
