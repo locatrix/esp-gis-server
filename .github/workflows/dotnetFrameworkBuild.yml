@@ -26,15 +26,12 @@ jobs:
 
       - name: Build .NET 4.8 and publish project
         #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release # for library
-        run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
+        #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
+        run: msbuild EspGisViewer/EspGisViewer.csproj /p:PublishProfile=FolderProfile /p:Configuration=Release
       - name: Show current directory
         run: |
-          echo "Current directory:"
-          pwd
-          echo "List EspGisViewer:"
-          dir EspGisViewer
-          echo "List EspGisViewer\bin:"
-          dir EspGisViewer\bin
+          echo "List EspGisViewer\bin\app.publish:"
+          dir EspGisViewer\bin\app.publish
       # - name: Upload published output (artifact)
       #   uses: actions/upload-artifact@v4
       #   with:
