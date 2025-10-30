@@ -31,6 +31,7 @@ jobs:
           $publishDir = "EspGisViewer/bin/app.publish"
           New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
           New-Item -ItemType Directory -Force -Path $publishDir/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path $publishDir/bin/staic | Out-Null
 
           # Build the DLL
           msbuild $project /p:Configuration=Release
@@ -39,9 +40,9 @@ jobs:
           Copy-Item "EspGisViewer/web.config" $publishDir -Force
           Copy-Item "EspGisViewer/Global.asax" $publishDir -Force
           Copy-Item "EspGisViewer/bin/Release/*" $publishDir/bin -Recurse -Force
+          Copy-Item "EspGisViewer/static" $publishDir/bin/static -Recurse -Force
 
           Write-Host "✅ Published output:"
-          Get-ChildItem EspGisViewer/bin/Release -Recurse | Select-Object FullName
           Get-ChildItem $publishDir -Recurse | Select-Object FullName
           Get-ChildItem $publishDir/bin -Recurse | Select-Object FullName
       - name: Upload published output (artifact)
