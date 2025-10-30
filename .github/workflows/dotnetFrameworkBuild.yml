@@ -1,0 +1,51 @@
+﻿name: Build and Publish .NET Framework 4.8 Project
+
+on:
+  push:
+    branches:
+      - feature/ESP-167-githubActions
+
+jobs:
+  build:
+    name: Build and Publish
+    runs-on: windows-latest #for .NET Framework
+    timeout-minutes: 120 # Ensure it doesnt last forever
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore EspGisViewer.sln
+
+      - name: Build .NET 4.8 Library with web content
+        #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
+        run: |
+          $project = "EspGisViewer/EspGisViewer.csproj"
+          $publishDir = "EspGisViewer/bin/app.publish"
+          New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $publishDir/bin | Out-Null
+
+          # Build the DLL
+          msbuild $project /p:Configuration=Release
+
+          # Copy all static files, web.config, and Global.asax
+          Copy-Item "EspGisViewer/web.config" $publishDir -Force
+          Copy-Item "EspGisViewer/Global.asax" $publishDir -Force
+          Copy-Item "EspGisViewer/bin/Release/*" $publishDir/bin -Recurse -Force
+
+          Write-Host "✅ Published output:"
+          Get-ChildItem EspGisViewer/bin/Release -Recurse | Select-Object FullName
+          Get-ChildItem $publishDir -Recurse | Select-Object FullName
+          Get-ChildItem $publishDir/bin -Recurse | Select-Object FullName
+      - name: Upload published output (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: 'EspGisViewer/bin/app.publish/'
