@@ -3,7 +3,7 @@
 on:
   push:
     branches:
-      - feature/ESP-167-githubActions
+      - feature/dotnet-port
 
 jobs:
   build:
