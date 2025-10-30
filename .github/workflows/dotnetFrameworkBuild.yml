@@ -40,19 +40,12 @@ jobs:
 
           Write-Host "✅ Published output:"
           Get-ChildItem $publishDir -Recurse | Select-Object FullName
+          Get-ChildItem $publishDir/bin -Recurse | Select-Object FullName
       #- name: Build .NET 4.8 and publish project
         #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release # for library
         #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
-      - name: Show current directory
-        run: |
-          echo "List EspGisViewer\bin:"
-          dir EspGisViewer\bin\
-          echo "List EspGisViewer\bin\app.publish:"
-          dir EspGisViewer\bin\app.publish
-          echo "List EspGisViewer\bin\app.publish\bin:"
-          dir EspGisViewer\bin\app.publish\bin
-      # - name: Upload published output (artifact)
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: published-app
-      #     path: '**/EspGisViewer/bin/app.publish/'
+      - name: Upload published output (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: 'EspGisViewer/bin/app.publish/'
