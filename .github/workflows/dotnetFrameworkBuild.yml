@@ -39,13 +39,14 @@ jobs:
           Copy-Item "EspGisViewer/bin/Release/*" $publishDir/bin -Recurse -Force
 
           Write-Host "✅ Published output:"
+          Get-ChildItem EspGisViewer/bin/Release -Recurse | Select-Object FullName
           Get-ChildItem $publishDir -Recurse | Select-Object FullName
           Get-ChildItem $publishDir/bin -Recurse | Select-Object FullName
       #- name: Build .NET 4.8 and publish project
         #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release # for library
         #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
-      - name: Upload published output (artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: published-app
-          path: 'EspGisViewer/bin/app.publish/'
+      # - name: Upload published output (artifact)
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: published-app
+      #     path: 'EspGisViewer/bin/app.publish/'
