@@ -25,10 +25,12 @@ jobs:
         run: nuget restore EspGisViewer.sln
 
       - name: Build .NET 4.8 Library with web content
+        #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
         run: |
           $project = "EspGisViewer/EspGisViewer.csproj"
           $publishDir = "EspGisViewer/bin/app.publish"
           New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $publishDir/bin | Out-Null
 
           # Build the DLL
           msbuild $project /p:Configuration=Release
@@ -42,11 +44,8 @@ jobs:
           Get-ChildItem EspGisViewer/bin/Release -Recurse | Select-Object FullName
           Get-ChildItem $publishDir -Recurse | Select-Object FullName
           Get-ChildItem $publishDir/bin -Recurse | Select-Object FullName
-      #- name: Build .NET 4.8 and publish project
-        #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release # for library
-        #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
-      # - name: Upload published output (artifact)
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: published-app
-      #     path: 'EspGisViewer/bin/app.publish/'
+      - name: Upload published output (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: 'EspGisViewer/bin/app.publish/'
