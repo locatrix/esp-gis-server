@@ -3,7 +3,7 @@ name: Build and Publish .NET Framework 4.8 Project
 on:
   push:
     branches:
-      - feature/dotnet-port
+      - feature/ESP-167-githubActions
 
 jobs:
   build:
