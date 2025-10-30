@@ -1,0 +1,42 @@
+name: Build and Publish .NET Framework 4.8 Project
+
+on:
+  push:
+    branches:
+      - feature/dotnet-port
+
+jobs:
+  build:
+    name: Build and Publish
+    runs-on: windows-latest #for .NET Framework
+    timeout-minutes: 120 # Ensure it doesnt last forever
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore EspGisViewer.sln
+
+      - name: Build .NET 4.8 and publish project
+        #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release # for library
+        run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" - for web app
+      - name: Show current directory
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "List EspGisViewer:"
+          dir EspGisViewer
+          echo "List EspGisViewer\bin:"
+          dir EspGisViewer\bin
+      # - name: Upload published output (artifact)
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: published-app
+      #     path: '**/EspGisViewer/bin/Release/'
