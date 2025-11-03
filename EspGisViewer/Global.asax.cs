@@ -7,8 +7,8 @@ namespace EspGisViewer
     {
         protected void Application_Start(object sender, EventArgs e)
         {
-            // Initialize SQLitePCLRaw bundle for non-UWP/desktop environments
-            SQLitePCL.Batteries.Init();
+            // Initialize SQLitePCLRaw bundle (v2) for desktop/ASP.NET
+            SQLitePCL.Batteries_V2.Init();
             Console.WriteLine("EspGisViewer started");
         }
     }
