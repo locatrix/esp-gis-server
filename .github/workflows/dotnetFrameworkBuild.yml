@@ -34,7 +34,7 @@ jobs:
           $publishDir = "EspGisViewer/bin/app.publish"
           New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
           New-Item -ItemType Directory -Force -Path $publishDir/bin | Out-Null
-          New-Item -ItemType Directory -Force -Path $publishDir/bin/staic | Out-Null
+          New-Item -ItemType Directory -Force -Path $publishDir/bin/static | Out-Null
 
           # Build the DLL
           msbuild $project /p:Configuration=Release
