@@ -1,4 +1,4 @@
-﻿name: Build and Publish .NET Framework 4.6.1 Project
+﻿name: Build and Publish .NET Framework 4.6.0 Project
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore EspGisViewer.sln
 
-      - name: Build .NET 4.6.1 Library with web content
+      - name: Build .NET 4.6.0 Library with web content
         #run: msbuild EspGisViewer/EspGisViewer.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProvider=FileSystem /p:PublishUrl="EspGisViewer\bin\app.publish\" # for web app
         run: |
           $project = "EspGisViewer/EspGisViewer.csproj"

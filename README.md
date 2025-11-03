@@ -5,7 +5,7 @@ ESP GIS Server is a free, standalone web server written for the .NET Framework. 
 This allows you to consume ESP GIS GeoPackages in a self-hosted way, without any dependencies on Locatrix web services. This approach is recommended for emergency services applications.
 
 ### Requirements
-*   .NET Framework 4.6.1
+*   .NET Framework 4.6.0
 *   Windows 10 or later
 *   IIS (for production hosting)
 

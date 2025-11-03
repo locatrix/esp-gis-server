@@ -11,7 +11,7 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>EspGisViewer.DiffTests</RootNamespace>
         <AssemblyName>EspGisViewer.DiffTests</AssemblyName>
-        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -55,8 +55,8 @@
     </ItemGroup>
     <ItemGroup>
       <PackageReference Include="NUnit" Version="3.5.0" />
-      <PackageReference Include="sqlite-net-base" Version="1.9.172" />
-      <PackageReference Include="SQLitePCLRaw.core" Version="2.1.2" />
+      <PackageReference Include="sqlite-net-pcl" Version="1.5.231" />
+      <PackageReference Include="SQLitePCLRaw.bundle_green" Version="1.1.14" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
     <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

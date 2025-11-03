@@ -7,7 +7,8 @@ namespace EspGisViewer
     {
         protected void Application_Start(object sender, EventArgs e)
         {
-            SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_winsqlite3());
+            // Initialize SQLitePCLRaw bundle for non-UWP/desktop environments
+            SQLitePCL.Batteries.Init();
             Console.WriteLine("EspGisViewer started");
         }
     }
