@@ -138,7 +138,7 @@ namespace EspGisViewer.Data
             _connectionQueue = connectionQueue ?? throw new ArgumentNullException(nameof(connectionQueue), "Connection queue cannot be null.");
         }
         
-        public override Task<T> Use<T>(Util.Action<ISQLiteAsyncConnection, Task<T>> action)
+        public override Task<T> Use<T>(Util.Action<SQLiteAsyncConnection, Task<T>> action)
         {
             return _connectionQueue.Request(action);
         }
