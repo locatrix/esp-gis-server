@@ -31,6 +31,7 @@ jobs:
           $publishDir = "EspGisViewer/bin/app.publish"
           New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
           New-Item -ItemType Directory -Force -Path $publishDir/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path $publishDir/bin/staic | Out-Null
 
           # Build the DLL
           msbuild $project /p:Configuration=Release
@@ -38,6 +39,7 @@ jobs:
           # Copy all static files, web.config, and Global.asax
           Copy-Item "EspGisViewer/web.config" $publishDir -Force
           Copy-Item "EspGisViewer/Global.asax" $publishDir -Force
+          Copy-Item "EspGisViewer/static" $publishDir/bin/static -Recurse -Force
 
           # Copy all bin files except app.publish to app.publish
           Get-ChildItem "EspGisViewer/bin" -Recurse | 
