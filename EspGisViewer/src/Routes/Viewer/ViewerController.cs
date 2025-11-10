@@ -47,7 +47,7 @@ namespace EspGisViewer.Routes.Viewer
 
             context.Response.StatusCode = 500;
             context.Response.ContentType = "text/plain";
-            context.Response.Write("Not Found");
+            context.Response.Write($"Not Found: {context.Request.Path}");
 
             return Task.CompletedTask;
         }
