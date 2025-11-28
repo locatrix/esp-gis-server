@@ -1,6 +1,7 @@
-import {useEffect, useRef, useState} from "react"
+import { useEffect, useRef } from "react"
 import mapboxgl, { Map, type LngLatLike } from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
+import { DEBUG_MODE } from "./main"
 
 const INITIAL_CENTER: LngLatLike = [
   133.15429687500003,
@@ -8,6 +9,11 @@ const INITIAL_CENTER: LngLatLike = [
 ]
 
 const INITIAL_ZOOM = 4
+
+type HashParams = {
+  camera?: { lat: number; lng: number; zoom: number };
+  layer?: string;
+}
 
 export default function MapView(props: {
   selectedLayer: string,
@@ -20,15 +26,14 @@ export default function MapView(props: {
     throw new Error("MAPBOX_ACCESS_TOKEN is not set")
   }
 
+  // Mapbox Container & Map Refs
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
+
+  // Setup refs to avoid re-creating event handlers
   const selectedLayerRef = useRef(props.selectedLayer)
   const setSelectedLayerRef = useRef(props.setSelectedLayer)
   const onChangeViewRef = useRef(props.onChangeView)
-  const [center, setCenter] = useState(INITIAL_CENTER)
-  const [zoom, setZoom] = useState(INITIAL_ZOOM)
-
-  // Setup refs to avoid re-creating event handlers
   useEffect(() => { selectedLayerRef.current = props.selectedLayer; }, [props.selectedLayer])
   useEffect(() => { setSelectedLayerRef.current = props.setSelectedLayer; }, [props.setSelectedLayer])
   useEffect(() => { onChangeViewRef.current = props.onChangeView; }, [props.onChangeView])
@@ -36,12 +41,17 @@ export default function MapView(props: {
   // Initialise mapbox viewer on mount
   useEffect(() => {
     if (!containerRef.current) return
-    console.log('MapView Initialised- mapboxgl version:', mapboxgl.version)
+    DEBUG_MODE ? console.log('MapView Initialised- mapboxgl version:', mapboxgl.version) : null
+
+    const loadHash = extractHashParams()
+    if (loadHash.layer) {
+      selectedLayerRef.current = loadHash.layer
+    }
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      center: loadHash.camera ? [loadHash.camera.lng,  loadHash.camera.lat] : INITIAL_CENTER,
+      zoom: loadHash.camera ? loadHash.camera.zoom : INITIAL_ZOOM,
       pitch: 0,
       bearing: 0,
       dragRotate: false,
@@ -84,13 +94,13 @@ export default function MapView(props: {
     };
   }, [])
 
-  function applyHashToMap(map: mapboxgl.Map) {
+  function extractHashParams(): HashParams {
+    let params: HashParams = {}
     let fragment = window.location.hash.replace("#", "")
     let parts = fragment.split("&");
 
     for (let part of parts) {
       const [key, value] = part.split("=");
-      console.log("Hash part:", key, value)
 
       if (key === "camera") {
         const vals = value.split(",")
@@ -102,14 +112,27 @@ export default function MapView(props: {
           const z = parseFloat(zoom)
 
           if (!isNaN(lat) && !isNaN(lng) && !isNaN(z)) {
-            map.jumpTo({ center: [lng, lat], zoom: z })
+            params.camera = { lat, lng, zoom: z }
           }
         }
       }
 
       if (key === "layer") {
-        setSelectedLayerRef.current?.(value)
+        params.layer = value
       }
+    }
+    return params
+  }
+
+  function applyHashToMap(map: mapboxgl.Map) {
+    const params = extractHashParams()
+    if (params.camera) {
+      const { lat, lng, zoom } = params.camera
+      map.jumpTo({ center: [lng, lat], zoom: zoom })
+    }
+
+    if (params.layer) {
+      setSelectedLayerRef.current?.(params.layer)
     }
   }
 

@@ -58,3 +58,5 @@ export default tseslint.config({
 In order to use the MapBox viewer, the `VITE_MAPBOX_ACCESS_TOKEN` environment variable is required. This token should be set in the `.env` file located within `./Client`.
 
 For convenience, `./Client` contains a file called `.env.template` which can be duplicated, renamed to `.env` and populated with the required keys.
+
+Future developers should also note that `VITE_DEBUG_VIEWER` can be set to `1` to enable debug mode.
