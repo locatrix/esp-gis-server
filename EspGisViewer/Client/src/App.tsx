@@ -78,7 +78,7 @@ export default function App() {
         }}
         style={{ zIndex: 0 }}
       />
-      {<Flex style={{zIndex: 1, position: 'fixed', bottom: 16, left: 16}}>
+      {<Flex style={{zIndex: 1, position: 'fixed', bottom: 32, left: 8}}>
         <Select
           placeholder="Layer Level"
           value={selected}
@@ -141,5 +141,3 @@ export default function App() {
     </>
   )
 }
-
-

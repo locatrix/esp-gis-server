@@ -52,3 +52,9 @@ export default tseslint.config({
   },
 })
 ```
+
+## Using Mapbox Viewer Environment
+
+In order to use the MapBox viewer, the `VITE_MAPBOX_ACCESS_TOKEN` environment variable is required. This token should be set in the `.env` file located within `./Client`.
+
+For convenience, `./Client` contains a file called `.env.template` which can be duplicated, renamed to `.env` and populated with the required keys.
