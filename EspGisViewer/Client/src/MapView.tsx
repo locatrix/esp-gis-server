@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import mapboxgl, { Map, type LngLatLike } from "mapbox-gl"
+import mapboxgl, { Map, MercatorCoordinate, type LngLatLike } from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { DEBUG_MODE } from "./main"
 
@@ -58,24 +58,29 @@ export default function MapView(props: {
       pitchWithRotate: false
     })
 
+    mapRef.current = map
+
     // apply URL hash on load
     map.on("load", () => {
+      if (!mapRef.current) return
       applyHashToMap(map)
       injectSelectedLayer(map, selectedLayerRef.current)
     })
 
     // update hash when camera stops moving
     map.on("moveend", () => {
+      if (!mapRef.current) return
       updateHashFromMap(map)
 
-      const currentPoint = map.getCenter()
-      const currentZoom = Math.ceil(map.getZoom())
-      if (onChangeViewRef.current) {
-        const p = map.project(currentPoint, currentZoom)
+      const currPoint = map.getCenter()
+      const currZoom = Math.ceil(map.getZoom())
+
+      if (onChangeViewRef.current && currPoint) {
+        const world = lngLatToWorldPixel(currPoint, currZoom);
         onChangeViewRef.current(
-          Math.floor(p.x / 256),
-          Math.floor(p.y / 256),
-          currentZoom
+          Math.floor(world.x / 256),
+          Math.floor(world.y / 256),
+          currZoom
         )
       }
     })
@@ -86,13 +91,24 @@ export default function MapView(props: {
     // Navigation Controls
     map.addControl(new mapboxgl.NavigationControl())
 
-    mapRef.current = map
-
     return () => {
       map.remove();
       mapRef.current = null
     };
   }, [])
+
+  function lngLatToWorldPixel(point: LngLatLike, zoom: number) {
+    const TILE_SIZE = 256;
+
+    const scale = TILE_SIZE * Math.pow(2, zoom);
+
+    const m = MercatorCoordinate.fromLngLat(point);
+
+    const worldX = m.x * scale;
+    const worldY = m.y * scale;
+
+    return { x: worldX, y: worldY };
+  }
 
   function extractHashParams(): HashParams {
     let params: HashParams = {}
@@ -179,24 +195,20 @@ export default function MapView(props: {
       })
     }
     
-    if (!map.isStyleLoaded()) {
-      console.warn("Map style not loaded yet; cannot install layer")
+    // If style is loaded, inject now; otherwise wait for it
+    if (map.isStyleLoaded()) {
+      injectLayer()
       return
     }
 
-    // If style not ready, wait for it
-    if (!map.isStyleLoaded()) {
-      const handler = () => {
-        if (map.isStyleLoaded()) {
-          map.off("styledata", handler)
-          injectLayer()
-        }
+    console.warn("Map style not loaded yet; waiting to install layer")
+    const handler = () => {
+      if (map.isStyleLoaded()) {
+        map.off("styledata", handler)
+        injectLayer()
       }
-      map.on("styledata", handler)
-      return;
     }
-
-    injectLayer()
+    map.on("styledata", handler)
   }
 
   // When selectedLayer changes → update raster source
