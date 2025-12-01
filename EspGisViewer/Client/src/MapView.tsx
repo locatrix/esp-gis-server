@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import mapboxgl, { Map, MercatorCoordinate, type LngLatLike } from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
-import { DEBUG_MODE } from "./main"
+import { DEBUG_MODE, SERVER_TARGET_OVERRIDE } from "./main"
 
 // Shows entirety of Australia
 const INITIAL_CENTER: LngLatLike = [
@@ -9,6 +9,10 @@ const INITIAL_CENTER: LngLatLike = [
   -25.839449402063185
 ]
 const INITIAL_ZOOM = 4
+
+// Apply a zoom offset to account for Leaflet vs Mapbox zoom level differences
+// https://www.reddit.com/r/explainlikeimfive/comments/5cg778/eli5_control_arms/
+const LEAFLET_ZOOM_OFFSET = 1
 
 type HashParams = {
   camera?: {
@@ -55,7 +59,7 @@ export default function MapView(props: {
     const map = new mapboxgl.Map({
       container: containerRef.current,
       center: loadHash.camera ? [loadHash.camera.lng,  loadHash.camera.lat] : INITIAL_CENTER,
-      zoom: loadHash.camera ? loadHash.camera.zoom : INITIAL_ZOOM,
+      zoom: (loadHash.camera ? loadHash.camera.zoom : INITIAL_ZOOM) - LEAFLET_ZOOM_OFFSET,
       pitch: 0,
       bearing: 0,
       dragRotate: false,
@@ -78,7 +82,7 @@ export default function MapView(props: {
       updateHashFromMap(map)
 
       const currPoint = map.getCenter()
-      const currZoom = Math.ceil(map.getZoom())
+      const currZoom = Math.ceil(map.getZoom() + LEAFLET_ZOOM_OFFSET)
 
       if (onChangeViewRef.current && currPoint) {
         const world = lngLatToWorldPixel(currPoint, currZoom);
@@ -149,7 +153,7 @@ export default function MapView(props: {
     const params = extractHashParams()
     if (params.camera) {
       const { lat, lng, zoom } = params.camera
-      map.jumpTo({ center: [lng, lat], zoom: zoom })
+      map.jumpTo({ center: [lng, lat], zoom: zoom - LEAFLET_ZOOM_OFFSET })
     }
 
     if (params.layer) {
@@ -163,7 +167,7 @@ export default function MapView(props: {
 
     const lat = c.lat.toFixed(8)
     const lng = c.lng.toFixed(8)
-    const zoom = z.toFixed(2)
+    const zoom = (z + LEAFLET_ZOOM_OFFSET).toFixed(2)
 
     const layer = selectedLayerRef.current;
 
