@@ -177,8 +177,7 @@ export default function MapView(props: {
 
   function injectSelectedLayer(map: mapboxgl.Map, layerName: string) {
     if (!map) return
-    // const wmtsPath = location.pathname.replace("/viewer", "/wmts")
-    const wmtsPath = 'https://locatrixesp-sandbox-e9dhdqekbjguhjbf.australiaeast-01.azurewebsites.net/wmts'
+    const wmtsPath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/wmts') : location.pathname.replace('/viewer', '/wmts')
 
     const injectLayer = () => {
       // Remove previous ESP layer if present

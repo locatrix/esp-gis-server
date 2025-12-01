@@ -8,6 +8,7 @@ import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 const queryClient = new QueryClient();
 
 export const DEBUG_MODE = import.meta.env.VITE_DEBUG_VIEWER === '1'
+export const SERVER_TARGET_OVERRIDE = import.meta.env.VITE_SERVER_TARGET_OVERRIDE || '' as string
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

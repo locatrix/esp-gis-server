@@ -5,12 +5,15 @@ import {useQuery} from "@tanstack/react-query";
 import {formatLevel, isNumber, isTileName, type Tileset} from "./formatLevel.ts";
 import {useColorScheme, useDidUpdate, useThrottledState} from "@mantine/hooks";
 import {usePop} from "./components/Pop.tsx";
+import { DEBUG_MODE, SERVER_TARGET_OVERRIDE } from './main.tsx';
 
 export default function App() {
   const theme = useColorScheme()
-  const coveragePath = location.pathname.replace('/viewer', '/coverage')
-  const wmtsPath = location.pathname.replace('/viewer', '/wmts')
-
+  const coveragePath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/coverage') : location.pathname.replace('/viewer', '/coverage')
+  const wmtsPath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/wmts') : location.pathname.replace('/viewer', '/wmts')
+  DEBUG_MODE ? console.log('Coverage Path:', coveragePath) : null
+  DEBUG_MODE ? console.log('WMTS Path:', wmtsPath) : null
+  
   const [selected, setSelected] = useState<Tileset>('coverage')
   const [tempSelected, setTempSelected] = useThrottledState<Tileset | null>(null, 500)
   
@@ -130,7 +133,11 @@ export default function App() {
             c={`var(--mantine-color-${theme}-1)`}
             bg={`var(--mantine-color-${theme}-6)`}
             onClick={() => {
-              void navigator.clipboard.writeText(`${location.protocol}//${location.host}${wmtsPath}/${selected}/capabilities.xml`)
+              if (SERVER_TARGET_OVERRIDE) {
+                void navigator.clipboard.writeText(`${wmtsPath}/${selected}/capabilities.xml`)
+              } else {
+                void navigator.clipboard.writeText(`${location.protocol}//${location.host}${wmtsPath}/${selected}/capabilities.xml`)
+              }
               popOpen()
             }}
           >
