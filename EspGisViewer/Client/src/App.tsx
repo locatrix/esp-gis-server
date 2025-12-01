@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {Button, Flex, Select, Title, useMantineTheme} from "@mantine/core";
 import MapView from "./MapView.tsx";
 import {useQuery} from "@tanstack/react-query";
@@ -11,9 +11,12 @@ export default function App() {
   const theme = useColorScheme()
   const coveragePath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/coverage') : location.pathname.replace('/viewer', '/coverage')
   const wmtsPath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/wmts') : location.pathname.replace('/viewer', '/wmts')
-  DEBUG_MODE ? console.log('Coverage Path:', coveragePath) : null
-  DEBUG_MODE ? console.log('WMTS Path:', wmtsPath) : null
-  
+
+  useEffect(() => {
+    DEBUG_MODE ? console.log('Coverage Path:', coveragePath) : null
+    DEBUG_MODE ? console.log('WMTS Path:', wmtsPath) : null
+  }, [])
+
   const [selected, setSelected] = useState<Tileset>('coverage')
   const [tempSelected, setTempSelected] = useThrottledState<Tileset | null>(null, 500)
   

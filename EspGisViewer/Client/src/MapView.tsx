@@ -64,7 +64,8 @@ export default function MapView(props: {
       bearing: 0,
       dragRotate: false,
       pitchWithRotate: false,
-      projection: 'mercator'
+      projection: 'mercator',
+      maxZoom: 22 - LEAFLET_ZOOM_OFFSET,
     })
 
     mapRef.current = map
@@ -176,7 +177,7 @@ export default function MapView(props: {
       "",
       `#camera=${lat},${lng},${zoom}z&layer=${layer}`
     );
-    console.log("Updated hash:", window.location.hash)
+    DEBUG_MODE ? console.log("Updated hash:", window.location.hash) : null
   }
 
   function injectSelectedLayer(map: mapboxgl.Map, layerName: string) {
