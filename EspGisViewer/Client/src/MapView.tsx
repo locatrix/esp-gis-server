@@ -86,7 +86,7 @@ export default function MapView(props: {
       const currZoom = Math.ceil(map.getZoom() + LEAFLET_ZOOM_OFFSET)
 
       if (onChangeViewRef.current && currPoint) {
-        const world = lngLatToWorldPixel(currPoint, currZoom);
+        const world = lngLatToWorldPixel(currPoint, currZoom)
         onChangeViewRef.current(
           Math.floor(world.x / 256),
           Math.floor(world.y / 256),
@@ -102,38 +102,38 @@ export default function MapView(props: {
     map.addControl(new mapboxgl.NavigationControl())
 
     return () => {
-      map.remove();
+      map.remove()
       mapRef.current = null
-    };
+    }
   }, [])
 
   function lngLatToWorldPixel(point: LngLatLike, zoom: number) {
-    const TILE_SIZE = 256;
+    const TILE_SIZE = 256
 
-    const scale = TILE_SIZE * Math.pow(2, zoom);
+    const scale = TILE_SIZE * Math.pow(2, zoom)
 
-    const m = MercatorCoordinate.fromLngLat(point);
+    const m = MercatorCoordinate.fromLngLat(point)
 
-    const worldX = m.x * scale;
-    const worldY = m.y * scale;
+    const worldX = m.x * scale
+    const worldY = m.y * scale
 
-    return { x: worldX, y: worldY };
+    return { x: worldX, y: worldY }
   }
 
-  function extractHashParams(): HashParams {
+  function extractHashParams (): HashParams {
     let params: HashParams = {}
     let fragment = window.location.hash.replace("#", "")
-    let parts = fragment.split("&");
+    let parts = fragment.split("&")
 
     for (let part of parts) {
-      const [key, value] = part.split("=");
+      const [key, value] = part.split("=")
 
       if (key === "camera") {
         const vals = value.split(",")
         if (vals.length === 3) {
           const lat = parseFloat(vals[0])
           const lng = parseFloat(vals[1])
-          let zoom = vals[2];
+          let zoom = vals[2]
           if (zoom.endsWith("z")) zoom = zoom.slice(0, -1)
           const z = parseFloat(zoom)
 
@@ -150,7 +150,7 @@ export default function MapView(props: {
     return params
   }
 
-  function applyHashToMap(map: mapboxgl.Map) {
+  function applyHashToMap (map: mapboxgl.Map) {
     const params = extractHashParams()
     if (params.camera) {
       const { lat, lng, zoom } = params.camera
@@ -162,7 +162,7 @@ export default function MapView(props: {
     }
   }
 
-  function updateHashFromMap(map: mapboxgl.Map) {
+  function updateHashFromMap (map: mapboxgl.Map) {
     const c = map.getCenter()
     const z = map.getZoom()
 
@@ -170,17 +170,17 @@ export default function MapView(props: {
     const lng = c.lng.toFixed(8)
     const zoom = (z + LEAFLET_ZOOM_OFFSET).toFixed(2)
 
-    const layer = selectedLayerRef.current;
+    const layer = selectedLayerRef.current
 
     history.replaceState(
       null,
       "",
       `#camera=${lat},${lng},${zoom}z&layer=${layer}`
-    );
+    )
     DEBUG_MODE ? console.log("Updated hash:", window.location.hash) : null
   }
 
-  function injectSelectedLayer(map: mapboxgl.Map, layerName: string) {
+  function injectSelectedLayer (map: mapboxgl.Map, layerName: string) {
     if (!map) return
     const wmtsPath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/wmts') : location.pathname.replace('/viewer', '/wmts')
 
