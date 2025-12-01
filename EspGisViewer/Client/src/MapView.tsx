@@ -3,16 +3,20 @@ import mapboxgl, { Map, MercatorCoordinate, type LngLatLike } from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { DEBUG_MODE } from "./main"
 
+// Shows entirety of Australia
 const INITIAL_CENTER: LngLatLike = [
   133.15429687500003,
   -25.839449402063185
 ]
-
 const INITIAL_ZOOM = 4
 
 type HashParams = {
-  camera?: { lat: number; lng: number; zoom: number };
-  layer?: string;
+  camera?: {
+    lat: number
+    lng: number
+    zoom: number
+  }
+  layer?: string
 }
 
 export default function MapView(props: {
@@ -55,7 +59,8 @@ export default function MapView(props: {
       pitch: 0,
       bearing: 0,
       dragRotate: false,
-      pitchWithRotate: false
+      pitchWithRotate: false,
+      projection: 'mercator'
     })
 
     mapRef.current = map
@@ -153,12 +158,12 @@ export default function MapView(props: {
   }
 
   function updateHashFromMap(map: mapboxgl.Map) {
-    const c = map.getCenter();
-    const z = map.getZoom();
+    const c = map.getCenter()
+    const z = map.getZoom()
 
-    const lat = c.lat.toFixed(8);
-    const lng = c.lng.toFixed(8);
-    const zoom = z.toFixed(2);
+    const lat = c.lat.toFixed(8)
+    const lng = c.lng.toFixed(8)
+    const zoom = z.toFixed(2)
 
     const layer = selectedLayerRef.current;
 

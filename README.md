@@ -29,7 +29,8 @@ This project is designed to be run from Visual Studio or hosted in a Windows IIS
       ...
     </appSettings>
     ```
-5.  Press `F5` or the "Run" button in Visual Studio. This will automatically:
+5. `[Optional]` To use the ESP Web Viewer, you will need to configure a [mapbox](https://www.mapbox.com/) access token. See the `EspGisViewer/Client/README.md` for the configuration details.
+6.  Press `F5` or the "Run" button in Visual Studio. This will automatically:
     *   Install client-side dependencies using Yarn.
     *   Build the client-side viewer application.
     *   Build the .NET server application.
