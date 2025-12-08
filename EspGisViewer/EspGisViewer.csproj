@@ -125,6 +125,17 @@
     <Folder Include="Client\" />
     <Folder Include="static\viewer\" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Copy SQLite dependencies to build directory -->
+    <Content Include="LocatrixDeps\x86\e_sqlite3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>LocatrixDeps\x86\e_sqlite3.dll</TargetPath>
+    </Content>
+    <Content Include="LocatrixDeps\x64\e_sqlite3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>LocatrixDeps\x64\e_sqlite3.dll</TargetPath>
+    </Content>
+  </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
