@@ -53,7 +53,6 @@ namespace EspGisViewer.Data
             var contents = Directory.GetFiles(_packagePath);
 
             var tilesFiles = new List<string>();
-            var featureFiles = new List<string>();
 
             foreach (var fileName in contents)
             {
@@ -62,11 +61,6 @@ namespace EspGisViewer.Data
                 if (FileConfig.TilesFileRegex.IsMatch(filePart))
                 {
                     tilesFiles.Add(fileName);
-                }
-
-                if (FileConfig.TilesFileRegex.IsMatch(filePart))
-                {
-                    // featureFiles.Add(fileName);
                 }
             }
 
