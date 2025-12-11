@@ -74,7 +74,7 @@ namespace EspGisViewer.Routes.Wfs
 
             await _dataSource.Refresh(true);
 
-            var columns = await _dataSource.Features.Use(db => db.QueryAsync<Column>("PRAGMA table_info(all_features)", (Dictionary<string, string>)null));
+            var columns = await _dataSource.Tiles.Use(db => db.QueryAsync<Column>("PRAGMA table_info(all_features)", (Dictionary<string, string>)null));
 
             var featureTypes = columns
                 .Where(c => !c.IsExcluded())

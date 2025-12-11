@@ -84,7 +84,6 @@ namespace EspGisViewer.Data
         protected abstract Task CheckForNewData();
 
         public abstract DataConnection Tiles { get; }
-        public abstract DataConnection Features { get; }
     }
 
     public abstract class DataConnection

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Configuration;
 using System.Web.Script.Serialization;
@@ -16,10 +14,6 @@ namespace EspGisViewer.Data
         private readonly string _packagePath;
 
         private TaskQueue<SQLiteAsyncConnection> _tilesDbQueue;
-        private TaskQueue<SQLiteAsyncConnection> _featuresDbQueue;
-
-        private string _currTilesPath = null;
-        private string _currFeaturesPath = null;
 
         public FileSystemDataSource()
         {
@@ -53,12 +47,6 @@ namespace EspGisViewer.Data
             get => _tiles ?? throw new InvalidOperationException("Tiles data connection is not initialized. Ensure CheckForNewData has been called.");
             
         }
-        
-        private FileSystemDataConnection _features;
-        public override DataConnection Features
-        {
-            get => _features ?? throw new InvalidOperationException("Features data connection is not initialized. Ensure CheckForNewData has been called.");
-        }
 
         protected override async Task CheckForNewData()
         {
@@ -76,9 +64,9 @@ namespace EspGisViewer.Data
                     tilesFiles.Add(fileName);
                 }
 
-                if (FileConfig.FeaturesFileRegex.IsMatch(filePart))
+                if (FileConfig.TilesFileRegex.IsMatch(filePart))
                 {
-                    featureFiles.Add(fileName);
+                    // featureFiles.Add(fileName);
                 }
             }
 
@@ -86,25 +74,17 @@ namespace EspGisViewer.Data
             // for files in the regexes, we can slice off the last 13 characters of the
             // filename and sort them and leverage the sorting of the YYYYMMMDD text.
             tilesFiles.Sort((a, b) => string.Compare(b.Substring(b.Length - 13), a.Substring(a.Length - 13), StringComparison.Ordinal));
-            featureFiles.Sort((a, b) => string.Compare(b.Substring(b.Length - 13), a.Substring(a.Length - 13), StringComparison.Ordinal));
 
             if (tilesFiles.Count == 0)
             {
                 throw new Exception("unable to find tiles GeoPackage in ESP_GIS_FOLDER: " + new JavaScriptSerializer().Serialize(contents));
             }
 
-            if (featureFiles.Count == 0)
-            {
-                throw new Exception("unable to find features GeoPackage in ESP_GIS_FOLDER: " + new JavaScriptSerializer().Serialize(contents));
-            }
-
             var tilesFile = tilesFiles[0];
-            var featuresFile = featureFiles[0];
 
             var tilesPath = Path.Combine(_packagePath, tilesFile);
-            var featuresPath = Path.Combine(_packagePath, featuresFile);
 
-            Console.WriteLine($"reading tiles from {tilesPath} & {featuresPath}");
+            Console.WriteLine($"reading tiles from {tilesPath}");
 
             _tilesDbQueue?.Request(async db =>
             {
@@ -112,20 +92,8 @@ namespace EspGisViewer.Data
                 return true; // return value doesn't matter
             });
 
-            _featuresDbQueue?.Request(async db =>
-            {
-                await db.CloseAsync();
-                return true; // return value doesn't matter
-            });
-
-            _currTilesPath = tilesPath;
-            _currFeaturesPath = featuresPath;
-
             _tilesDbQueue = new TaskQueue<SQLiteAsyncConnection>(new SQLiteAsyncConnection(tilesPath));
-            _featuresDbQueue = new TaskQueue<SQLiteAsyncConnection>(new SQLiteAsyncConnection(featuresPath));
-
             _tiles = new FileSystemDataConnection(_tilesDbQueue);
-            _features = new FileSystemDataConnection(_featuresDbQueue);
         }
     }
 
