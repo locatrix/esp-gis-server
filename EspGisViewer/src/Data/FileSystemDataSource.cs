@@ -41,10 +41,10 @@ namespace EspGisViewer.Data
             CheckForNewData().Wait();
         }
         
-        private FileSystemDataConnection _tiles;
-        public override DataConnection Tiles
+        private FileSystemDataConnection _tilesandFeatures;
+        public override DataConnection TilesAndFeatures
         {
-            get => _tiles ?? throw new InvalidOperationException("Tiles data connection is not initialized. Ensure CheckForNewData has been called.");
+            get => _tilesandFeatures ?? throw new InvalidOperationException("Tiles data connection is not initialized. Ensure CheckForNewData has been called.");
             
         }
 
@@ -52,29 +52,29 @@ namespace EspGisViewer.Data
         {
             var contents = Directory.GetFiles(_packagePath);
 
-            var tilesFiles = new List<string>();
+            var tilesAndFeaturesFiles = new List<string>();
 
             foreach (var fileName in contents)
             {
                 var filePart = Path.GetFileName(fileName);
 
-                if (FileConfig.TilesFileRegex.IsMatch(filePart))
+                if (FileConfig.TilesAndFeaturesFileRegex.IsMatch(filePart))
                 {
-                    tilesFiles.Add(fileName);
+                    tilesAndFeaturesFiles.Add(fileName);
                 }
             }
 
             // this is crude but works - because we enforce YYYYMMDD.gpkg as the ending
             // for files in the regexes, we can slice off the last 13 characters of the
             // filename and sort them and leverage the sorting of the YYYYMMMDD text.
-            tilesFiles.Sort((a, b) => string.Compare(b.Substring(b.Length - 13), a.Substring(a.Length - 13), StringComparison.Ordinal));
+            tilesAndFeaturesFiles.Sort((a, b) => string.Compare(b.Substring(b.Length - 13), a.Substring(a.Length - 13), StringComparison.Ordinal));
 
-            if (tilesFiles.Count == 0)
+            if (tilesAndFeaturesFiles.Count == 0)
             {
                 throw new Exception("unable to find tiles GeoPackage in ESP_GIS_FOLDER: " + new JavaScriptSerializer().Serialize(contents));
             }
 
-            var tilesFile = tilesFiles[0];
+            var tilesFile = tilesAndFeaturesFiles[0];
 
             var tilesPath = Path.Combine(_packagePath, tilesFile);
 
@@ -87,7 +87,7 @@ namespace EspGisViewer.Data
             });
 
             _tilesDbQueue = new TaskQueue<SQLiteAsyncConnection>(new SQLiteAsyncConnection(tilesPath));
-            _tiles = new FileSystemDataConnection(_tilesDbQueue);
+            _tilesandFeatures = new FileSystemDataConnection(_tilesDbQueue);
         }
     }
 

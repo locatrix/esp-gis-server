@@ -29,7 +29,7 @@ namespace EspGisViewer.Routes.Wmts
         {
             await _dataSource.Refresh(true);
 
-            var rows = await _dataSource.Tiles.Use(db => db.QueryAsync<TileName>("" +
+            var rows = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<TileName>("" +
                                                                                  "SELECT identifier, table_name " +
                                                                                  "FROM gpkg_contents " +
                                                                                  "WHERE data_type = 'tiles'", (Dictionary<string, string>) null));

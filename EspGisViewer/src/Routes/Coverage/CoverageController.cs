@@ -66,7 +66,7 @@ namespace EspGisViewer.Routes.Coverage
 
             try
             {
-                levels = await _dataSource.Tiles.QueryAsync<LayerLevelRow>(@"
+                levels = await _dataSource.TilesAndFeatures.QueryAsync<LayerLevelRow>(@"
                 SELECT DISTINCT tileset as layer_level
                 FROM all_tiles  
                 WHERE zoom_level = $zoom AND tile_column = $x AND tile_row = $y

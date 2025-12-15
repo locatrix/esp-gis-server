@@ -25,7 +25,7 @@ namespace EspGisViewer.Routes.Wfs
         {
             await _dataSource.Refresh(true);
 
-            var featureData = await _dataSource.Tiles.Use(db => db.QueryAsync<FeatureData>(@"
+            var featureData = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<FeatureData>(@"
                 SELECT DISTINCT featureset
                 FROM all_features
             ", (Dictionary<string, string>)null));
