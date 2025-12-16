@@ -14,7 +14,7 @@ namespace EspGisViewer.Routes.Wmts
         {
             _dataSource = dataSource;
             var capabilitiesController = new WmtsCapabilitiesController(dataSource);
-            var tilesController = new WmtsTileController(dataSource, dataSource.Tiles);
+            var tilesController = new WmtsTileController(dataSource, dataSource.TilesAndFeatures);
             
             using (router.Route("wmts"))
             {

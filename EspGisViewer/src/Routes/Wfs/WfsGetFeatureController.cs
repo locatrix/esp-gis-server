@@ -141,7 +141,7 @@ namespace EspGisViewer.Routes.Wfs
                 {(bbox != null ? "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3" : "")}
                 {(count != null ? "LIMIT $count" : "")}
             ";
-            var features = await _dataSource.Features.Use(db => db.QueryAsync<Feature>(sql, queryParams));
+            var features = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<Feature>(sql, queryParams));
 
             int numberMatched = features.Count;
             if (count != null)
@@ -159,7 +159,7 @@ namespace EspGisViewer.Routes.Wfs
                     WHERE featureset IN ({featureSets})
                     {(bbox != null ? "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3" : "")}
                 ";
-                var totalCountResult = await _dataSource.Features.Use(db => db.QueryAsync<FeatureCount>(sql1, remainingQueryParams));
+                var totalCountResult = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<FeatureCount>(sql1, remainingQueryParams));
                 numberMatched = totalCountResult[0].TotalCount;
             }
 

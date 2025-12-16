@@ -7,7 +7,6 @@ namespace EspGisViewer.Util
         // files like espqld-tiles-20231115.gpkg are valid. (YYYYMMDD)
         // any leading prefix is also fine (so, "foo bar baz-tiles-20231115.gpkg"
         // would be valid).
-        public static readonly Regex TilesFileRegex = new Regex(@"^[^\.]+-tiles-\d{8}\.gpkg$", RegexOptions.Compiled);
-        public static readonly Regex FeaturesFileRegex = new Regex(@"^[^\.]+-features-\d{8}\.gpkg$", RegexOptions.Compiled);
+        public static readonly Regex TilesAndFeaturesFileRegex = new Regex(@"^[^\.]+-combined-\d{8}\.gpkg$", RegexOptions.Compiled);
     }
 }
