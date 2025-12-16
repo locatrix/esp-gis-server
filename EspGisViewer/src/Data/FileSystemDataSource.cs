@@ -13,7 +13,7 @@ namespace EspGisViewer.Data
 
         private readonly string _packagePath;
 
-        private TaskQueue<SQLiteAsyncConnection> _tilesDbQueue;
+        private TaskQueue<SQLiteAsyncConnection> _tilesAndFeaturesDbQueue;
 
         public FileSystemDataSource()
         {
@@ -41,10 +41,10 @@ namespace EspGisViewer.Data
             CheckForNewData().Wait();
         }
         
-        private FileSystemDataConnection _tilesandFeatures;
+        private FileSystemDataConnection _tilesAndFeatures;
         public override DataConnection TilesAndFeatures
         {
-            get => _tilesandFeatures ?? throw new InvalidOperationException("Tiles data connection is not initialized. Ensure CheckForNewData has been called.");
+            get => _tilesAndFeatures ?? throw new InvalidOperationException("Tiles data connection is not initialized. Ensure CheckForNewData has been called.");
             
         }
 
@@ -71,23 +71,23 @@ namespace EspGisViewer.Data
 
             if (tilesAndFeaturesFiles.Count == 0)
             {
-                throw new Exception("unable to find tiles GeoPackage in ESP_GIS_FOLDER: " + new JavaScriptSerializer().Serialize(contents));
+                throw new Exception("unable to find combined tile and features GeoPackage in ESP_GIS_FOLDER: " + new JavaScriptSerializer().Serialize(contents));
             }
 
-            var tilesFile = tilesAndFeaturesFiles[0];
+            var tilesAndFeaturesFile = tilesAndFeaturesFiles[0];
 
-            var tilesPath = Path.Combine(_packagePath, tilesFile);
+            var tilesAndFeaturesPath = Path.Combine(_packagePath, tilesAndFeaturesFile);
 
-            Console.WriteLine($"reading tiles from {tilesPath}");
+            Console.WriteLine($"reading tiles and features from {tilesAndFeaturesPath}");
 
-            _tilesDbQueue?.Request(async db =>
+            _tilesAndFeaturesDbQueue?.Request(async db =>
             {
                 await db.CloseAsync();
                 return true; // return value doesn't matter
             });
 
-            _tilesDbQueue = new TaskQueue<SQLiteAsyncConnection>(new SQLiteAsyncConnection(tilesPath));
-            _tilesandFeatures = new FileSystemDataConnection(_tilesDbQueue);
+            _tilesAndFeaturesDbQueue = new TaskQueue<SQLiteAsyncConnection>(new SQLiteAsyncConnection(tilesAndFeaturesPath));
+            _tilesAndFeatures = new FileSystemDataConnection(_tilesAndFeaturesDbQueue);
         }
     }
 
