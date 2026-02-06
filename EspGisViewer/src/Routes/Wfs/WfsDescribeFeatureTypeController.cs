@@ -44,23 +44,40 @@ namespace EspGisViewer.Routes.Wfs
 
         private static string MapSqlTypesIntoFeatures(Column column)
         {
-            if (column.Type == "INTEGER" || column.Type == "REAL")
+            // Integer Types
+            if (column.Type == "INTEGER" || column.Type == "INT")
             {
-                return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""Number""/>";
+                return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""xsd:int""/>";
             }
 
+            // Floating Point Types
+            if (column.Type == "REAL" || column.Type == "FLOAT" || column.Type == "DOUBLE")
+            {
+                return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""xsd:double""/>";
+            }
+
+            // String Types
             if (column.Type == "TEXT" || column.Type.Contains("VARCHAR"))
             {
-                return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""string""/>";
+                return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""xsd:string""/>";
             }
 
+            // Geometry Column (Specific BLOB)
             if (column.Name == "geom" && column.Type == "BLOB")
             {
                 // This is geometric data, it should be returned as a Point type
                 return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""gml:PointPropertyType""/>";
             }
 
-            throw new NotSupportedException($"Unsupported column type: {column.Type}");
+            // 5. Image/Binary Column (Generic BLOB)
+            if (column.Type == "BLOB")
+            {
+                // Correct OGC/XML type for binary images
+                return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""xsd:base64Binary""/>";
+            }
+
+            // Fallback for unknown types (treat as string to prevent crash)
+            return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""xsd:string""/>";
         }
 
         public async Task HandleRequest(HttpContext context, Dictionary<string, string> parameters, Dictionary<string, string> overrideQueries)
@@ -74,7 +91,7 @@ namespace EspGisViewer.Routes.Wfs
 
             await _dataSource.Refresh(true);
 
-            var columns = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<Column>("PRAGMA table_info(all_features)", (Dictionary<string, string>)null));
+            var columns = await _dataSource.TilesAndFeatures.QueryAsync<Column>("PRAGMA table_info(all_features)");
 
             var featureTypes = columns
                 .Where(c => !c.IsExcluded())
@@ -93,18 +110,25 @@ namespace EspGisViewer.Routes.Wfs
                 return;
             }
 
-            var xml = $@"<?xml version=""1.0""?>
-<xsd:schema xmlns:wfs=""http://www.opengis.net/wfs/2.0"" xmlns:gml=""http://www.opengis.net/gml/3.2"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
-  <xsd:import namespace=""http://www.opengis.net/gml/3.2"" schemaLocation=""http://www.opengis.net/gml/3.2""/>
-  <xsd:complexType name=""{mainFeatureType}Type"">
-    <xsd:complexContent>
-      <xsd:extension base=""gml:AbstractFeatureType"">
-        <xsd:sequence>{featureTypes.Aggregate("", (current, featureType) => current + "\r\n          " + featureType)}
-        </xsd:sequence>
-      </xsd:extension>
-    </xsd:complexContent>
-  </xsd:complexType>
-  <xsd:element name=""{mainFeatureType}"" substitutionGroup=""gml:AbstractFeature"" type=""LOCATRIX:{mainFeatureType}Type""/>
+                        var targetNamespace = "http://www.locatrix.com";
+                        var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<xsd:schema 
+        xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
+        xmlns:gml=""http://www.opengis.net/gml/3.2""
+        xmlns:wfs=""http://www.opengis.net/wfs/2.0""
+        xmlns:LOCATRIX=""{targetNamespace}""
+        targetNamespace=""{targetNamespace}""
+        elementFormDefault=""qualified"">
+    <xsd:import namespace=""http://www.opengis.net/gml/3.2"" schemaLocation=""http://schemas.opengis.net/gml/3.2.1/gml.xsd""/>
+    <xsd:element name=""{mainFeatureType}"" type=""LOCATRIX:{mainFeatureType}Type"" substitutionGroup=""gml:AbstractFeature""/>
+    <xsd:complexType name=""{mainFeatureType}Type"">
+        <xsd:complexContent>
+            <xsd:extension base=""gml:AbstractFeatureType"">
+                <xsd:sequence>{featureTypes.Aggregate("", (current, featureType) => current + "\r\n          " + featureType)}
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
 </xsd:schema>";
 
             context.Response.StatusCode = 200;

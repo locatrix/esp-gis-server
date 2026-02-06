@@ -44,7 +44,8 @@ namespace EspGisViewer.Routes.Wfs
     <wfs:FeatureType>
       <wfs:Name>{feature}</wfs:Name>
       <wfs:Title>{feature}</wfs:Title>
-      <wfs:DefaultCRS>urn:ogc:def:crs:EPSG::3857</wfs:DefaultCRS>
+      <wfs:DefaultCRS>urn:ogc:def:crs:EPSG:4326</wfs:DefaultCRS>
+      <wfs:OtherCRS>urn:ogc:def:crs:EPSG::3857</wfs:OtherCRS>
       <ows:WGS84BoundingBox>
         <ows:LowerCorner>113.503234326 -43.280603544</ows:LowerCorner>
         <ows:UpperCorner>153.650786054 -12.274432464</ows:UpperCorner>

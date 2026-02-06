@@ -83,12 +83,17 @@ namespace EspGisViewer.Routes.Wfs
 
                 if (bboxPartsList.Count == 5)
                 {
-                    // WFS 1.1.0 allows a 5th parameter for CRS, WFS 2.0.0 may have more complex rules
-                    if (!"urn:ogc:def:crs:EPSG::3857".Equals(bboxPartsList[4], StringComparison.OrdinalIgnoreCase))
+                    // For 5-part BBOX, support EPSG:4326 and EPSG:3857 URNs
+                    var crs = bboxPartsList[4];
+                    var allowed =
+                        "urn:ogc:def:crs:EPSG::4326".Equals(crs, StringComparison.OrdinalIgnoreCase) ||
+                        "urn:ogc:def:crs:EPSG::3857".Equals(crs, StringComparison.OrdinalIgnoreCase) ||
+                        "urn:ogc:def:crs:EPSG::102100".Equals(crs, StringComparison.OrdinalIgnoreCase);
+                    if (!allowed)
                     {
                         response.StatusCode = 400;
                         response.ContentType = "text/plain";
-                        response.Write("Unsupported bbox CRS. Only urn:ogc:def:crs:EPSG::3857 allowed for 5-part bbox.");
+                        response.Write("Unsupported bbox CRS. Only urn:ogc:def:crs:EPSG::4326 or ::3857 (or ::102100) allowed for 5-part bbox.");
                         return null;
                     }
                     bboxPartsList.RemoveAt(4); // Remove the CRS part
@@ -162,7 +167,7 @@ namespace EspGisViewer.Routes.Wfs
             }
 
             // --- SrsName ---
-            var srsName = "EPSG:3857"; // Default SRS
+            var srsName = "EPSG:4326"; // Default SRS
             var srsNameParam = queries.Get("srsname");
             if (!string.IsNullOrEmpty(srsNameParam))
             {
@@ -173,15 +178,15 @@ namespace EspGisViewer.Routes.Wfs
                 // Using OrdinalIgnoreCase for robustness, as SRS codes can vary in casing.
                 switch (normalizedSrsName.ToUpperInvariant()) // Convert to upper for case-insensitive comparison
                 {
-                    case "EPSG:102100":
-                    case "URN:OGC:DEF:CRS:EPSG::102100":
-                    case "EPSG:3857": // Already default, but good to handle explicitly
-                    case "URN:OGC:DEF:CRS:EPSG::3857":
-                        srsName = "EPSG:3857";
-                        break;
                     case "EPSG:4326":
                     case "URN:OGC:DEF:CRS:EPSG::4326":
                         srsName = "EPSG:4326";
+                        break;
+                    case "EPSG:3857":
+                    case "URN:OGC:DEF:CRS:EPSG::3857":
+                    case "EPSG:102100":
+                    case "URN:OGC:DEF:CRS:EPSG::102100":
+                        srsName = "EPSG:3857";
                         break;
                     default:
                         var message = $"Unsupported SRS: {normalizedSrsName}";

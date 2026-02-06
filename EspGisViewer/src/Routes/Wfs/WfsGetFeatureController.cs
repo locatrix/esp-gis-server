@@ -134,14 +134,27 @@ namespace EspGisViewer.Routes.Wfs
                 queryParams["$count"] = count.ToString();
             }
 
+            var bboxPredicate = "";
+            if (bbox != null)
+            {
+                if (srsName == "EPSG:4326")
+                {
+                    bboxPredicate = "AND latitude > $bbox0 AND longitude > $bbox1 AND latitude < $bbox2 AND longitude < $bbox3";
+                }
+                else if (srsName == "EPSG:3857")
+                {
+                    bboxPredicate = "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3";
+                }
+            }
+
             string sql = $@"
                 SELECT *
                 FROM all_features
                 WHERE featureset IN ({featureSets})
-                {(bbox != null ? "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3" : "")}
+                {bboxPredicate}
                 {(count != null ? "LIMIT $count" : "")}
             ";
-            var features = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<Feature>(sql, queryParams));
+            var features = await _dataSource.TilesAndFeatures.QueryAsync<Feature>(sql, queryParams);
 
             int numberMatched = features.Count;
             if (count != null)
@@ -157,9 +170,9 @@ namespace EspGisViewer.Routes.Wfs
                     SELECT COUNT(*) AS totalCount
                     FROM all_features
                     WHERE featureset IN ({featureSets})
-                    {(bbox != null ? "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3" : "")}
+                    {bboxPredicate}
                 ";
-                var totalCountResult = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<FeatureCount>(sql1, remainingQueryParams));
+                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(sql1, remainingQueryParams);
                 numberMatched = totalCountResult[0].TotalCount;
             }
 
