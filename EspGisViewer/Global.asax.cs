@@ -32,7 +32,7 @@ namespace EspGisViewer
                 throw new FileNotFoundException("EspGisViewer x64 sqlite file not found");
             }
             
-            string tmpPath = Path.Combine(Path.GetTempPath(), "LocatrixDeps");
+            string tmpPath = Path.Combine(Path.GetTempPath(), "LocatrixDeps\\" + DateTime.Now.ToString("yyyyMMddHHmmssfff"));
            
             // SQLitePCL needs the parent directory of the "x64" and "x86" folders
             SQLitePCL.Settings.BaseDirectoryForDynamicLoadNativeLibrary = tmpPath;
