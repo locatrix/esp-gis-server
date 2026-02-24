@@ -35,8 +35,7 @@ namespace EspGisViewer.Routes
                 CoverageRoute.Register(router, dataSource);
 
                 // blank favicon so chrome stops spamming dev tools
-                var routeCheck = authParam != null ? router.Route(router.Param("accessToken") + "favicon.ico") : router.Route("favicon.ico");
-                using (routeCheck)
+                 using (router.Route("favicon.ico"))
                 {
                     router.SetHandler((context, parameters) =>
                     {
@@ -55,8 +54,20 @@ namespace EspGisViewer.Routes
 
         public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
         {
+            var path = (context.Request.Path ?? string.Empty);
+
+            // Allow the browser to fetch favicon without failing token validation.
+            // Browsers sometimes request "/favicon.ico" even when the app expects "/{token}/favicon.ico".
+            // Treat favicon requests as unauthenticated so they don't produce 401 before the router can respond.
+            if (path.EndsWith("/favicon.ico", StringComparison.OrdinalIgnoreCase))
+            {
+                // allow CORS for favicon as well
+                context.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                return Router.BeginProcessRequest(context, cb, extraData);
+            }
+
             // Check if the access token is valid
-            if (!Authentication.CheckToken(context.Request.Path))
+            if (!Authentication.CheckToken(path))
             {
                 context.Response.StatusCode = 401;
                 try

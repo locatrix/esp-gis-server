@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
@@ -23,6 +24,14 @@ namespace EspGisViewer.Routes.Viewer
                 throw new ArgumentException("Path must contain /viewer");
             }
 
+            // obtain authtoken
+            string token = null;
+            var parts = filePath.TrimStart('/').Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2 && parts[1].Equals("viewer", StringComparison.OrdinalIgnoreCase))
+            {
+                token = parts[0];
+            }
+
             // strip everything up until the first instance of /viewer
             int index = filePath.IndexOf("/viewer", StringComparison.Ordinal);
             filePath = filePath.Substring(index);
@@ -39,7 +48,7 @@ namespace EspGisViewer.Routes.Viewer
             // convert to physical paths
             paths = paths.Select(p => System.IO.Path.Combine(context.Server.MapPath("~/"), p)).ToList();
 
-            if (paths.Any(path => TryPath(context, path)))
+            if (paths.Any(path => TryPath(context, path, token)))
             {
                 context.Response.StatusCode = 200;
                 return Task.CompletedTask;
@@ -52,19 +61,20 @@ namespace EspGisViewer.Routes.Viewer
             return Task.CompletedTask;
         }
 
-        private static bool TryPath(HttpContext context, string filePath)
+        // token may be null. When serving HTML, we inject token into asset URLs
+        private static bool TryPath(HttpContext context, string filePath, string token)
         {
-            if (System.IO.Directory.Exists(filePath))
+            if (Directory.Exists(filePath))
             {
-                filePath = System.IO.Path.Combine(filePath, "index.html");
+                filePath = Path.Combine(filePath, "index.html");
             }
-            if (!System.IO.File.Exists(filePath))
+            if (!File.Exists(filePath))
             {
                 return false;
             }
 
             // extension to mime type mapping
-            string extension = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
             string mimeType = "application/octet-stream";
 
             switch (extension)
@@ -87,7 +97,21 @@ namespace EspGisViewer.Routes.Viewer
             }
 
             context.Response.ContentType = mimeType;
-            context.Response.WriteFile(filePath);
+
+            if (extension == ".html" && !string.IsNullOrEmpty(token))
+            {
+                // token
+                string content = File.ReadAllText(filePath);
+                content = content.Replace("/viewer/assets/", "/" + token + "/viewer/assets/");
+                content = content.Replace("/favicon.ico", "/" + token + "/favicon.ico");
+
+                context.Response.Write(content);
+            }
+            else
+            {
+                // no token
+                context.Response.WriteFile(filePath);
+            }
 
             return true;
         }
