@@ -15,7 +15,7 @@ namespace EspGisViewer.Util
             // }
             if (Authentication.AccessTokensEnabled())
             {
-                serverUrl += $"/{accessToken}";
+                serverUrl += $"{accessToken}";
             }
 
             if (requireSlash && !serverUrl.EndsWith("/"))

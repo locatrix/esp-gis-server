@@ -35,7 +35,8 @@ namespace EspGisViewer.Routes
                 CoverageRoute.Register(router, dataSource);
 
                 // blank favicon so chrome stops spamming dev tools
-                using (router.Route("favicon.ico"))
+                var routeCheck = authParam != null ? router.Route(router.Param("accessToken") + "favicon.ico") : router.Route("favicon.ico");
+                using (routeCheck)
                 {
                     router.SetHandler((context, parameters) =>
                     {
