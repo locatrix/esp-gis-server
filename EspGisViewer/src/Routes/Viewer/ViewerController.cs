@@ -100,15 +100,13 @@ namespace EspGisViewer.Routes.Viewer
 
             if (extension == ".html" && !string.IsNullOrEmpty(token))
             {
-                // token
-                string content = File.ReadAllText(filePath);
-                content = content.Replace("/viewer/assets/", "/" + token + "/viewer/assets/");
-
+                // token enforced
+                string content = File.ReadAllText(filePath).Replace("/viewer/assets/", "/" + token + "/viewer/assets/");
                 context.Response.Write(content);
             }
             else
             {
-                // no token
+                // no token enforced
                 context.Response.WriteFile(filePath);
             }
 
