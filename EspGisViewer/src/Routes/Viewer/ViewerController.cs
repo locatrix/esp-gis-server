@@ -103,7 +103,6 @@ namespace EspGisViewer.Routes.Viewer
                 // token
                 string content = File.ReadAllText(filePath);
                 content = content.Replace("/viewer/assets/", "/" + token + "/viewer/assets/");
-                content = content.Replace("/favicon.ico", "/" + token + "/favicon.ico");
 
                 context.Response.Write(content);
             }
