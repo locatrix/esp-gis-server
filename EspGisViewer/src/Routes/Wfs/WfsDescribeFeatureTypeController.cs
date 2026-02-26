@@ -110,26 +110,26 @@ namespace EspGisViewer.Routes.Wfs
                 return;
             }
 
-            var targetNamespace = "http://www.locatrix.com";
-            var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-                <xsd:schema 
-                        xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
-                        xmlns:gml=""http://www.opengis.net/gml/3.2""
-                        xmlns:wfs=""http://www.opengis.net/wfs/2.0""
-                        xmlns:LOCATRIX=""{targetNamespace}""
-                        targetNamespace=""{targetNamespace}""
-                        elementFormDefault=""qualified"">
-                    <xsd:import namespace=""http://www.opengis.net/gml/3.2"" schemaLocation=""http://schemas.opengis.net/gml/3.2.1/gml.xsd""/>
-                    <xsd:element name=""{mainFeatureType}"" type=""LOCATRIX:{mainFeatureType}Type"" substitutionGroup=""gml:AbstractFeature""/>
-                    <xsd:complexType name=""{mainFeatureType}Type"">
-                        <xsd:complexContent>
-                            <xsd:extension base=""gml:AbstractFeatureType"">
-                                <xsd:sequence>{featureTypes.Aggregate("", (current, featureType) => current + "\r\n          " + featureType)}
-                                </xsd:sequence>
-                            </xsd:extension>
-                        </xsd:complexContent>
-                    </xsd:complexType>
-                </xsd:schema>";
+                        var targetNamespace = "http://www.locatrix.com";
+                        var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<xsd:schema 
+        xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
+        xmlns:gml=""http://www.opengis.net/gml/3.2""
+        xmlns:wfs=""http://www.opengis.net/wfs/2.0""
+        xmlns:LOCATRIX=""{targetNamespace}""
+        targetNamespace=""{targetNamespace}""
+        elementFormDefault=""qualified"">
+    <xsd:import namespace=""http://www.opengis.net/gml/3.2"" schemaLocation=""http://schemas.opengis.net/gml/3.2.1/gml.xsd""/>
+    <xsd:element name=""{mainFeatureType}"" type=""LOCATRIX:{mainFeatureType}Type"" substitutionGroup=""gml:AbstractFeature""/>
+    <xsd:complexType name=""{mainFeatureType}Type"">
+        <xsd:complexContent>
+            <xsd:extension base=""gml:AbstractFeatureType"">
+                <xsd:sequence>{featureTypes.Aggregate("", (current, featureType) => current + "\r\n          " + featureType)}
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+</xsd:schema>";
 
             context.Response.StatusCode = 200;
             context.Response.ContentType = "text/xml";
