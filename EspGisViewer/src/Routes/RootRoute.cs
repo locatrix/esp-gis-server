@@ -54,8 +54,17 @@ namespace EspGisViewer.Routes
 
         public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
         {
+            var path = (context.Request.Path ?? string.Empty);
+
+            // Allow the browser to fetch favicon without failing token validation.
+            if ((context.Request.Url + context.Request.Path) == (context.Request.Url + "/favicon.ico"))
+            {
+                context.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                return Router.BeginProcessRequest(context, cb, extraData);
+            }
+
             // Check if the access token is valid
-            if (!Authentication.CheckToken(context.Request.Path))
+            if (!Authentication.CheckToken(path))
             {
                 context.Response.StatusCode = 401;
                 try
