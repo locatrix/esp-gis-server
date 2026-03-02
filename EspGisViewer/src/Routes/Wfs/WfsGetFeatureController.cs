@@ -10,56 +10,19 @@ using EspGisViewer.Data;
 using EspGisViewer.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using SQLite;
+using System.Reflection;
 using Formatting = Newtonsoft.Json.Formatting;
 namespace EspGisViewer.Routes.Wfs
 {
 
-    public class Feature
+    public class FeatureRow
     {
         [SQLite.Column("id")]
         public int Id { get; set; }
 
-        [SQLite.Column("featureset")]
-        public string Featureset { get; set; }
-
-        [SQLite.Column("geom")]
-        public string Geometry { get; set; }
-
-        [SQLite.Column("partnerName")]
-        public string PartnerName { get; set; }
-
-        [SQLite.Column("clientName")]
-        public string ClientName { get; set; }
-
-        [SQLite.Column("campusName")]
-        public string CampusName { get; set; }
-
-        [SQLite.Column("buildingName")]
-        public string BuildingName { get; set; }
-
-        [SQLite.Column("floors")]
-        public string Floors { get; set; }
-
-        [SQLite.Column("campusAddress")]
-        public string CampusAddress { get; set; }
-
-        [SQLite.Column("buildingAddress")]
-        public string BuildingAddress { get; set; }
-
-        [SQLite.Column("partnerCode")]
-        public string PartnerCode { get; set; }
-
-        [SQLite.Column("clientCode")]
-        public string ClientCode { get; set; }
-
-        [SQLite.Column("campusCode")]
-        public string CampusCode { get; set; }
-
-        [SQLite.Column("buildingCode")]
-        public string BuildingCode { get; set; }
-
-        [SQLite.Column("squareMeters")]
-        public string SquareMeters { get; set; }
+        [SQLite.Column("address")]
+        public string Address { get; set; }
 
         [SQLite.Column("latitude")]
         public double Latitude { get; set; }
@@ -73,8 +36,11 @@ namespace EspGisViewer.Routes.Wfs
         [SQLite.Column("y")]
         public double Y { get; set; }
 
-        [SQLite.Column("dateUpdated")]
-        public string DateUpdated { get; set; }
+        [SQLite.Column("image_data_url")]
+        public string ImageDataUrl { get; set; }
+
+        [SQLite.Column("floorplan_url")]
+        public string FloorplanUrl { get; set; }
     }
 
     public class FeatureCount
@@ -83,20 +49,34 @@ namespace EspGisViewer.Routes.Wfs
         public int TotalCount { get; set; }
     }
 
+    public class Column
+    {
+        [SQLite.Column("name")]
+        public string Name { get; set; }
+    }
+
+    public class TablePresence
+    {
+        [SQLite.Column("table_count")]
+        public int TableCount { get; set; }
+    }
+
     public class WfsGetFeatureController
     {
         private readonly DataSource _dataSource;
+        private readonly string _allowedType;
 
-        public WfsGetFeatureController(DataSource dataSource)
+        public WfsGetFeatureController(DataSource dataSource, string allowedType)
         {
             _dataSource = dataSource;
+            _allowedType = allowedType;
         }
 
         public async Task HandleRequest(HttpContext context, Dictionary<string, string> parameters, Dictionary<string, string> overrideQueries)
         {
             await _dataSource.Refresh(false);
 
-            var tryParse = WfsParams.Parse(context.Request, context.Response, overrideQueries);
+            var tryParse = WfsParams.Parse(context.Request, context.Response, overrideQueries, _allowedType);
             if (!tryParse.HasValue)
             {
                 return; // Error already handled in ParseWfsParams
@@ -108,16 +88,48 @@ namespace EspGisViewer.Routes.Wfs
             var outputFormat = parsed.OutputFormat;
             var count = parsed.Count;
             var srsName = parsed.SrsName;
+            var featureId = parsed.FeatureId;
 
-            // FeatureSet Params
-            var queryParams = new Dictionary<string, string>();
+            const int DefaultRealestateCount = 200;
 
-            for (var i = 0; i < typeNames.Length; i++)
+            var featureName = typeNames.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(featureName))
             {
-                queryParams[$"$param{i}"] = typeNames[i];
+                context.Response.StatusCode = 400;
+                context.Response.ContentType = "text/plain";
+                context.Response.Write("Missing typeNames parameter");
+                return;
             }
 
-            var featureSets = string.Join(",", typeNames.Select((t, i) => $"$param{i}"));
+            if (!string.Equals(featureName, _allowedType, StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = 404;
+                context.Response.ContentType = "text/plain";
+                context.Response.Write("Unknown feature type");
+                return;
+            }
+
+            var quotedTable = QuoteIdentifier(_allowedType);
+
+            if (string.Equals(_allowedType, "realestate-floorplans", StringComparison.OrdinalIgnoreCase))
+            {
+                var safeTableName = _allowedType.Replace("'", "''");
+                var tablePresence = await _dataSource.TilesAndFeatures.QueryAsync<TablePresence>(
+                    $"SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type = 'table' AND name = '{safeTableName}'");
+                if (tablePresence.Count == 0 || tablePresence[0].TableCount == 0)
+                {
+                    context.Response.ContentType = "application/json";
+                    context.Response.StatusCode = 200;
+                    context.Response.Write("{\"type\":\"FeatureCollection\",\"features\":[]}");
+                    return;
+                }
+            }
+
+            var columnRows = await _dataSource.TilesAndFeatures.QueryAsync<Column>($"PRAGMA table_info({quotedTable})");
+            var columnNames = new HashSet<string>(columnRows.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
+
+            // Feature Params
+            var queryParams = new Dictionary<string, string>();
 
             // Bounding Box Params
             if (bbox != null)
@@ -133,28 +145,53 @@ namespace EspGisViewer.Routes.Wfs
             {
                 queryParams["$count"] = count.ToString();
             }
+            else if (string.Equals(_allowedType, "realestate-floorplans", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
+            {
+                count = DefaultRealestateCount;
+                queryParams["$count"] = count.ToString();
+            }
 
             var bboxPredicate = "";
             if (bbox != null)
             {
-                if (srsName == "EPSG:4326")
+                if (srsName == "EPSG:4326" && columnNames.Contains("latitude") && columnNames.Contains("longitude"))
                 {
-                    bboxPredicate = "AND latitude > $bbox0 AND longitude > $bbox1 AND latitude < $bbox2 AND longitude < $bbox3";
+                    // BBOX is minLon, minLat, maxLon, maxLat
+                    bboxPredicate = "AND longitude > $bbox0 AND latitude > $bbox1 AND longitude < $bbox2 AND latitude < $bbox3";
                 }
-                else if (srsName == "EPSG:3857")
+                else if (srsName == "EPSG:3857" && columnNames.Contains("x") && columnNames.Contains("y"))
                 {
                     bboxPredicate = "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3";
                 }
             }
 
+            var idPredicate = "";
+            if (featureId != null)
+            {
+                idPredicate = "AND id = $featureId";
+                queryParams["$featureId"] = featureId.Value.ToString();
+            }
+
             string sql = $@"
                 SELECT *
-                FROM all_features
-                WHERE featureset IN ({featureSets})
+                FROM {quotedTable}
+                WHERE 1=1
+                {idPredicate}
                 {bboxPredicate}
                 {(count != null ? "LIMIT $count" : "")}
             ";
-            var features = await _dataSource.TilesAndFeatures.QueryAsync<Feature>(sql, queryParams);
+
+            List<FeatureRow> features;
+            try
+            {
+                features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, queryParams);
+            }
+            catch (Exception error)
+            {
+                Console.WriteLine(error.Message);
+                throw;
+            }
 
             int numberMatched = features.Count;
             if (count != null)
@@ -168,8 +205,8 @@ namespace EspGisViewer.Routes.Wfs
                 // This additional query returns the total number of features which match the request parameters
                 string sql1 = $@"
                     SELECT COUNT(*) AS totalCount
-                    FROM all_features
-                    WHERE featureset IN ({featureSets})
+                    FROM {quotedTable}
+                    WHERE 1=1
                     {bboxPredicate}
                 ";
                 var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(sql1, remainingQueryParams);
@@ -192,29 +229,28 @@ namespace EspGisViewer.Routes.Wfs
                         ["viewerUrl"] = $"{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}viewer#camera={feature.Latitude},{feature.Longitude},18.00z"
                     };
 
-                    foreach (var key in feature.GetType().GetProperties())
+                    foreach (var kvp in GetFeatureProperties(feature))
                     {
-                        if (key.Name == "Geometry")
-                        {
-                            continue;
-                        }
-
                         // convert key to camelCase
-                        var camelCaseKey = char.ToLowerInvariant(key.Name[0]) + key.Name.Substring(1);
-                        properties[camelCaseKey] = $"{key.GetValue(feature) ?? "null"}";
+                        var camelCaseKey = char.ToLowerInvariant(kvp.Key[0]) + kvp.Key.Substring(1);
+                        properties[camelCaseKey] = kvp.Value;
                     }
 
-                    var coordinates = new double[] { feature.X, feature.Y };
+                    var coordinates = (double[])null;
 
-                    if (srsName == "EPSG:4326")
+                    if (srsName == "EPSG:4326" && columnNames.Contains("latitude") && columnNames.Contains("longitude"))
                     {
                         coordinates = new double[] { feature.Longitude, feature.Latitude };
+                    }
+                    else if (srsName == "EPSG:3857" && columnNames.Contains("x") && columnNames.Contains("y"))
+                    {
+                        coordinates = new double[] { feature.X, feature.Y };
                     }
 
                     return new Dictionary<string, object>
                     {
                         ["type"] = "Feature",
-                        ["geometry"] = new Dictionary<string, object>
+                        ["geometry"] = coordinates == null ? null : new Dictionary<string, object>
                         {
                             ["type"] = "Point",
                             ["coordinates"] = coordinates
@@ -226,7 +262,6 @@ namespace EspGisViewer.Routes.Wfs
                 context.Response.ContentType = "application/json";
                 context.Response.StatusCode = 200;
 
-
                 var contractResolver = new DefaultContractResolver
                 {
                     NamingStrategy = new CamelCaseNamingStrategy()
@@ -234,7 +269,7 @@ namespace EspGisViewer.Routes.Wfs
                 var settings = new JsonSerializerSettings
                 {
                     ContractResolver = contractResolver,
-                    Formatting = Formatting.Indented
+                    Formatting = Formatting.None
                 };
                 context.Response.Write(JsonConvert.SerializeObject(obj, settings));
                 return;
@@ -246,18 +281,10 @@ namespace EspGisViewer.Routes.Wfs
             {
                 index++;
 
-                // NOTE: We assume all features (regardless of they are) have an id and featureset property.
-                // NOTE: the id & featureset properties will be omitted because they appear to be reserved properties from other namespaces.
+                // NOTE: We assume all features have an id and latitude/longitude (or x/y) for geometry.
                 string geom;
                 switch (srsName)
                 {
-                    case "EPSG:3857":
-                        geom = $@"<geom>
-        <gml:Point srsName=""urn:ogc:def:crs:EPSG::3857"" srsDimension=""2"" gml:id=""GmlPoint.{SafeXml(index)}"">
-          <gml:pos>{SafeXml(feature.X)} {SafeXml(feature.Y)}</gml:pos>
-        </gml:Point>
-      </geom>";
-                        break;
                     case "EPSG:4326":
                         geom = $@"<geom>
         <gml:Point srsName=""urn:ogc:def:crs:EPSG::4326"" srsDimension=""2"" gml:id=""GmlPoint.{SafeXml(index)}"">
@@ -274,29 +301,18 @@ namespace EspGisViewer.Routes.Wfs
                     plansXml.Append("\r\n");
                 }
 
-                plansXml.Append($@"  <wfs:member>
-    <plans gml:id=""Point.{SafeXml(index)}"">
-      <viewerUrl>{SafeXml(ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true))}viewer#camera={SafeXml(feature.Latitude)},{SafeXml(feature.Longitude)},18.00z</viewerUrl>
-      " + geom + $@"
-      <partnerName>{SafeXml(feature.PartnerName)}</partnerName>
-      <clientName>{SafeXml(feature.ClientName)}</clientName>
-      <campusName>{SafeXml(feature.CampusName)}</campusName>
-      <buildingName>{SafeXml(feature.BuildingName)}</buildingName>
-      <floors>{SafeXml(feature.Floors)}</floors>
-      <campusAddress>{SafeXml(feature.CampusAddress)}</campusAddress>
-      <buildingAddress>{SafeXml(feature.BuildingAddress)}</buildingAddress>
-      <partnerCode>{SafeXml(feature.PartnerCode)}</partnerCode>
-      <clientCode>{SafeXml(feature.ClientCode)}</clientCode>
-      <campusCode>{SafeXml(feature.CampusCode)}</campusCode>
-      <buildingCode>{SafeXml(feature.BuildingCode)}</buildingCode>
-      <squareMeters>{SafeXml(feature.SquareMeters)}</squareMeters>
-      <latitude>{SafeXml(feature.Latitude)}</latitude>
-      <longitude>{SafeXml(feature.Longitude)}</longitude>
-      <x>{SafeXml(feature.X)}</x>
-      <y>{SafeXml(feature.Y)}</y>
-      <dateUpdated>{SafeXml(feature.DateUpdated)}</dateUpdated>
-    </plans>
-  </wfs:member>");
+                                var propertiesXml = new StringBuilder();
+                                foreach (var kvp in GetFeatureProperties(feature))
+                                {
+                                        propertiesXml.Append($@"      <{kvp.Key}>{SafeXml(kvp.Value)}</{kvp.Key}>");
+                                        propertiesXml.Append("\r\n");
+                                }
+
+                                plansXml.Append($@"  <wfs:member>
+        <{featureName} gml:id=""Point.{SafeXml(index)}"">
+            " + geom + $@"
+{propertiesXml}    </{featureName}>
+    </wfs:member>");
             }
 
             string xml;
@@ -317,6 +333,42 @@ namespace EspGisViewer.Routes.Wfs
             context.Response.ContentType = "text/xml";
             context.Response.StatusCode = 200;
             context.Response.Write(xml);
+        }
+
+        private static IEnumerable<KeyValuePair<string, object>> GetFeatureProperties(FeatureRow feature)
+        {
+            foreach (var property in typeof(FeatureRow).GetProperties())
+            {
+                if (property.Name == nameof(FeatureRow.Id))
+                {
+                    continue;
+                }
+
+                var value = property.GetValue(feature);
+                if (value == null)
+                {
+                    continue;
+                }
+
+                if (value is byte[])
+                {
+                    continue;
+                }
+
+                yield return new KeyValuePair<string, object>(GetColumnName(property), value);
+            }
+        }
+
+        private static string GetColumnName(PropertyInfo property)
+        {
+            var attribute = property.GetCustomAttributes(typeof(SQLite.ColumnAttribute), true)
+                .FirstOrDefault() as SQLite.ColumnAttribute;
+            return attribute?.Name ?? property.Name;
+        }
+
+        private static string QuoteIdentifier(string identifier)
+        {
+            return "\"" + identifier.Replace("\"", "\"\"") + "\"";
         }
 
         /// <summary>

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,17 +9,19 @@ namespace EspGisViewer.Routes.Wfs
 {
     public class FeatureData
     {
-        [SQLite.Column("featureset")]
-        public string Feature { get; set; }
+      [SQLite.Column("name")]
+      public string Feature { get; set; }
     }
 
     public class WfsGetCapabilitiesController
     {
         private readonly DataSource _dataSource;
+        private readonly string _allowedType;
 
-        public WfsGetCapabilitiesController(DataSource dataSource)
+        public WfsGetCapabilitiesController(DataSource dataSource, string allowedType)
         {
             _dataSource = dataSource;
+          _allowedType = allowedType;
         }
 
         public async Task HandleRequest(HttpContext context, Dictionary<string, string> parameters)
@@ -26,14 +29,17 @@ namespace EspGisViewer.Routes.Wfs
             await _dataSource.Refresh(true);
 
             var featureData = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<FeatureData>(@"
-                SELECT DISTINCT featureset
-                FROM all_features
+              SELECT name
+              FROM feature_schemas
             ", (Dictionary<string, string>)null));
 
             var features = featureData.Select(fd => fd.Feature)
-                    .Distinct()
-                    .OrderBy(f => f)
-                    .ToList();
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Distinct()
+                .OrderBy(f => f)
+                .ToList();
+
+            features = features.Where(f => string.Equals(f, _allowedType, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var featuresXml = "";
 
@@ -52,6 +58,9 @@ namespace EspGisViewer.Routes.Wfs
       </ows:WGS84BoundingBox>
     </wfs:FeatureType>";
             }
+
+            var endpointPath = context.Request.Path.TrimStart('/');
+            var wfsEndpoint = ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true) + endpointPath;
 
             var xmlContents = $@"<?xml version=""1.0""?>
 <wfs:WFS_Capabilities version=""2.0.0"" xmlns:wfs=""http://www.opengis.net/wfs/2.0"" xmlns:ows=""http://www.opengis.net/ows/1.1"" xmlns:xlink=""http://www.w3.org/1999/xlink"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:gml=""http://www.opengis.net/gml"" xsi:schemaLocation=""http://www.opengis.net/wfs/2.0 https://schemas.opengis.net/wfs/2.0/wsdl/wfs.xsd"" xmlns:fes=""http://www.opengis.net/fes/2.0"">
@@ -91,8 +100,8 @@ namespace EspGisViewer.Routes.Wfs
     <ows:Operation name=""GetCapabilities"">
       <ows:DCP>
         <ows:HTTP>
-          <ows:Get xlink:href=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}wfs?""/>
-          <ows:Post xlink:href=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}wfs""/>
+          <ows:Get xlink:href=""{wfsEndpoint}?""/>
+          <ows:Post xlink:href=""{wfsEndpoint}""/>
         </ows:HTTP>
       </ows:DCP>
       <ows:Parameter name=""AcceptVersions"">
@@ -106,8 +115,8 @@ namespace EspGisViewer.Routes.Wfs
     <ows:Operation name=""DescribeFeatureType"">
       <ows:DCP>
         <ows:HTTP>
-          <ows:Get xlink:href=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}wfs?""/>
-          <ows:Post xlink:href=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}wfs""/>
+          <ows:Get xlink:href=""{wfsEndpoint}?""/>
+          <ows:Post xlink:href=""{wfsEndpoint}""/>
         </ows:HTTP>
       </ows:DCP>
       <ows:Parameter name=""outputFormat"">
@@ -119,8 +128,8 @@ namespace EspGisViewer.Routes.Wfs
     <ows:Operation name=""GetFeature"">
       <ows:DCP>
         <ows:HTTP>
-          <ows:Get xlink:href=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}wfs?""/>
-          <ows:Post xlink:href=""{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}wfs""/>
+          <ows:Get xlink:href=""{wfsEndpoint}?""/>
+          <ows:Post xlink:href=""{wfsEndpoint}""/>
         </ows:HTTP>
       </ows:DCP>
       <ows:Parameter name=""resultType"">
@@ -171,7 +180,6 @@ namespace EspGisViewer.Routes.Wfs
   </fes:Filter_Capabilities>
 </wfs:WFS_Capabilities>";
 
-            context.Response.StatusCode = 200;
             context.Response.ContentType = "text/xml";
 
             context.Response.Write(xmlContents);

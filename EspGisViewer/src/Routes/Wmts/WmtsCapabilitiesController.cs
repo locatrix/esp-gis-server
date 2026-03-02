@@ -30,7 +30,7 @@ namespace EspGisViewer.Routes.Wmts
             await _dataSource.Refresh(true);
 
             var rows = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<TileName>("" +
-                                                                                 "SELECT DISTINCT tileset as identifier, tileset as table_name " +
+                                                                                 "SELECT DISTINCT tileset AS identifier, tileset AS table_name " +
                                                                                  "FROM all_tiles", (Dictionary<string, string>) null));
 
             var renderedLayers = rows.ToList();

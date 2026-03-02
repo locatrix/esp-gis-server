@@ -19,14 +19,14 @@ namespace EspGisViewer.Routes.Wfs
         private readonly WfsDescribeFeatureTypeController _wfsDescribeFeatureTypeController;
         private readonly WfsGetCapabilitiesController _wfsGetCapabilitiesController;
 
-        private WfsRoute(IRouter router, DataSource dataSource) : base(router)
+        private WfsRoute(IRouter router, DataSource dataSource, string routePath, string allowedType) : base(router)
         {
             _dataSource = dataSource;
-            _wfsGetFeatureController = new WfsGetFeatureController(dataSource);
-            _wfsDescribeFeatureTypeController = new WfsDescribeFeatureTypeController(dataSource);
-            _wfsGetCapabilitiesController = new WfsGetCapabilitiesController(dataSource);
+            _wfsGetFeatureController = new WfsGetFeatureController(dataSource, allowedType);
+            _wfsDescribeFeatureTypeController = new WfsDescribeFeatureTypeController(dataSource, allowedType);
+            _wfsGetCapabilitiesController = new WfsGetCapabilitiesController(dataSource, allowedType);
 
-            using (router.Route("wfs"))
+            using (router.Route(routePath))
             {
                 router.SetHandler(ProxyCalls);
             }
@@ -198,7 +198,12 @@ namespace EspGisViewer.Routes.Wfs
         /// </summary>
         public static void Register(IRouter router, DataSource dataSource)
         {
-            _ = new WfsRoute(router, dataSource);
+            _ = new WfsRoute(router, dataSource, "wfs", "plans");
+        }
+
+        public static void Register(IRouter router, DataSource dataSource, string routePath, string allowedType)
+        {
+            _ = new WfsRoute(router, dataSource, routePath, allowedType);
         }
     }
 }

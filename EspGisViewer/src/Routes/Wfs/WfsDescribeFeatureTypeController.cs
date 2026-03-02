@@ -4,41 +4,36 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
+using SQLite;
+
 namespace EspGisViewer.Routes.Wfs
 {
     public class WfsDescribeFeatureTypeController
     {
         private readonly DataSource _dataSource;
+        private readonly string _allowedType;
 
-        public WfsDescribeFeatureTypeController(DataSource dataSource)
+        public WfsDescribeFeatureTypeController(DataSource dataSource, string allowedType)
         {
             _dataSource = dataSource;
+            _allowedType = allowedType;
         }
 
         private static readonly string[] ExcludedWfsColumns = {
-            "id",
-            "featureset"
+            "id"
         };
 
         private class Column
         {
+            [SQLite.Column("name")]
             public string Name { get; set; }
+
+            [SQLite.Column("type")]
             public string Type { get; set; }
 
             public bool IsExcluded()
             {
                 return ExcludedWfsColumns.Contains(Name);
-            }
-
-            public string GetSqlType()
-            {
-                switch (Type)
-                {
-                    case "INTEGER": return "int";
-                    case "REAL":    return "float";
-                    case "TEXT":    return "string";
-                    default:        return Type;
-                }
             }
         }
 
@@ -65,7 +60,6 @@ namespace EspGisViewer.Routes.Wfs
             // Geometry Column (Specific BLOB)
             if (column.Name == "geom" && column.Type == "BLOB")
             {
-                // This is geometric data, it should be returned as a Point type
                 return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""gml:PointPropertyType""/>";
             }
 
@@ -82,7 +76,7 @@ namespace EspGisViewer.Routes.Wfs
 
         public async Task HandleRequest(HttpContext context, Dictionary<string, string> parameters, Dictionary<string, string> overrideQueries)
         {
-            var tryParse = WfsParams.Parse(context.Request, context.Response, overrideQueries);
+            var tryParse = WfsParams.Parse(context.Request, context.Response, overrideQueries, _allowedType);
             if (!tryParse.HasValue)
             {
                 return;
@@ -91,18 +85,9 @@ namespace EspGisViewer.Routes.Wfs
 
             await _dataSource.Refresh(true);
 
-            var columns = await _dataSource.TilesAndFeatures.QueryAsync<Column>("PRAGMA table_info(all_features)");
-
-            var featureTypes = columns
-                .Where(c => !c.IsExcluded())
-                .Select(MapSqlTypesIntoFeatures)
-                .ToList();
-
-            featureTypes.Insert(0, MapSqlTypesIntoFeatures(new Column { Type = "TEXT", Name = "viewerUrl" }));
-
             var mainFeatureType = wfsParams.TypeNames.FirstOrDefault();
 
-            if (mainFeatureType == null)
+            if (string.IsNullOrEmpty(mainFeatureType))
             {
                 context.Response.StatusCode = 400;
                 context.Response.ContentType = "text/plain";
@@ -110,30 +95,62 @@ namespace EspGisViewer.Routes.Wfs
                 return;
             }
 
-                        var targetNamespace = "http://www.locatrix.com";
-                        var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+            if (!string.Equals(mainFeatureType, _allowedType, StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = 404;
+                context.Response.ContentType = "text/plain";
+                context.Response.Write("Unknown feature type");
+                return;
+            }
+
+            var quotedTable = QuoteIdentifier(_allowedType);
+
+            // PRAGMA table_info returns columns: cid, name, type, notnull, dflt_value, pk
+            var columns = await _dataSource.TilesAndFeatures.QueryAsync<Column>($"PRAGMA table_info({quotedTable})");
+
+            var featureTypes = columns
+                .Where(c => !c.IsExcluded())
+                .Select(MapSqlTypesIntoFeatures)
+                .ToList();
+
+            // Inject geometry + viewerUrl
+            featureTypes.Insert(0, MapSqlTypesIntoFeatures(new Column { Type = "TEXT", Name = "viewerUrl" }));
+            featureTypes.Insert(0, MapSqlTypesIntoFeatures(new Column { Type = "BLOB", Name = "geom" }));
+
+            // Define the Target Namespace (tns / LOCATRIX)
+            string targetNamespace = "http://www.locatrix.com"; 
+
+            var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <xsd:schema 
-        xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
-        xmlns:gml=""http://www.opengis.net/gml/3.2""
-        xmlns:wfs=""http://www.opengis.net/wfs/2.0""
-        xmlns:LOCATRIX=""{targetNamespace}""
-        targetNamespace=""{targetNamespace}""
-        elementFormDefault=""qualified"">
-    <xsd:import namespace=""http://www.opengis.net/gml/3.2"" schemaLocation=""http://schemas.opengis.net/gml/3.2.1/gml.xsd""/>
-    <xsd:element name=""{mainFeatureType}"" type=""LOCATRIX:{mainFeatureType}Type"" substitutionGroup=""gml:AbstractFeature""/>
-    <xsd:complexType name=""{mainFeatureType}Type"">
-        <xsd:complexContent>
-            <xsd:extension base=""gml:AbstractFeatureType"">
-                <xsd:sequence>{featureTypes.Aggregate("", (current, featureType) => current + "\r\n          " + featureType)}
-                </xsd:sequence>
-            </xsd:extension>
-        </xsd:complexContent>
-    </xsd:complexType>
+    xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
+    xmlns:gml=""http://www.opengis.net/gml/3.2""
+    xmlns:wfs=""http://www.opengis.net/wfs/2.0""
+    xmlns:LOCATRIX=""{targetNamespace}""
+    targetNamespace=""{targetNamespace}""
+    elementFormDefault=""qualified"">
+
+  <xsd:import namespace=""http://www.opengis.net/gml/3.2"" schemaLocation=""http://schemas.opengis.net/gml/3.2.1/gml.xsd""/>
+
+  <xsd:element name=""{mainFeatureType}"" type=""LOCATRIX:{mainFeatureType}Type"" substitutionGroup=""gml:AbstractFeature""/>
+
+  <xsd:complexType name=""{mainFeatureType}Type"">
+    <xsd:complexContent>
+      <xsd:extension base=""gml:AbstractFeatureType"">
+        <xsd:sequence>{featureTypes.Aggregate("", (current, featureType) => current + "\r\n          " + featureType)}
+        </xsd:sequence>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
 </xsd:schema>";
 
             context.Response.StatusCode = 200;
             context.Response.ContentType = "text/xml";
             context.Response.Write(xml);
+        }
+
+        private static string QuoteIdentifier(string identifier)
+        {
+            return "\"" + identifier.Replace("\"", "\"\"") + "\"";
         }
     }
 }

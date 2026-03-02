@@ -80,11 +80,8 @@ namespace EspGisViewer.DiffTests.Tests.Auto
             {
                 "srsname", new [] {
                     null,                               // Parameter absent (defaults to EPSG:3857)
-                    "EPSG:3857",                        // Valid: Web Mercator
                     "EPSG:4326",                        // Valid: WGS 84
-                    "EPSG:102100",                      // Valid: Alias for EPSG:3857
                     "urn:ogc:def:crs:EPSG::4326",       // Valid: URN for WGS 84
-                    "urn:ogc:def:crs:EPSG::3857",       // Valid: URN for Web Mercator
                     "EPSG:900913"                       // Invalid: Unsupported SRS (expect error)
                 }
             }

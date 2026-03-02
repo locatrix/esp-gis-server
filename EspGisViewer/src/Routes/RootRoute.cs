@@ -31,6 +31,12 @@ namespace EspGisViewer.Routes
                 // Route: /wfs
                 WfsRoute.Register(router, dataSource);
 
+                // Route: /realestate/wfs
+                using (router.Route("realestate"))
+                {
+                    WfsRoute.Register(router, dataSource, "wfs", "realestate-floorplans");
+                }
+
                 // Route: /coverage
                 CoverageRoute.Register(router, dataSource);
 

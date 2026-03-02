@@ -13,8 +13,9 @@ namespace EspGisViewer.Routes.Wfs
         public string OutputFormat { get; set; }
         public int? Count { get; set; }
         public string SrsName { get; set; }
+        public int? FeatureId { get; set; }
 
-        public static WfsParams? Parse(HttpRequest request, HttpResponse response, Dictionary<string, string> overrideQueries = null)
+        public static WfsParams? Parse(HttpRequest request, HttpResponse response, Dictionary<string, string> overrideQueries = null, string defaultTypeName = null)
         {
             var queries = HttpUtility.ParseQueryString(request.Url.Query);
 
@@ -61,7 +62,9 @@ namespace EspGisViewer.Routes.Wfs
 
             if (finalTypeNames.Length == 0)
             {
-                finalTypeNames = new[] { "plans" }; // Default to "plans" if no typenames provided
+                finalTypeNames = !string.IsNullOrEmpty(defaultTypeName)
+                    ? new[] { defaultTypeName }
+                    : new[] { "plans" }; // Default to "plans" if no typenames provided
             }
 
             // --- Bbox ---
@@ -166,6 +169,30 @@ namespace EspGisViewer.Routes.Wfs
                 count = parsedCount;
             }
 
+            // --- FeatureId ---
+            int? featureId = null;
+            var featureIdParam = queries.Get("featureid") ?? queries.Get("featureId");
+            if (!string.IsNullOrEmpty(featureIdParam))
+            {
+                var normalized = featureIdParam.Trim();
+                var idPart = normalized;
+                var dotIndex = normalized.LastIndexOf('.');
+                if (dotIndex >= 0 && dotIndex + 1 < normalized.Length)
+                {
+                    idPart = normalized.Substring(dotIndex + 1);
+                }
+
+                if (!int.TryParse(idPart, out var parsedFeatureId) || parsedFeatureId < 0)
+                {
+                    response.StatusCode = 400;
+                    response.ContentType = "text/plain";
+                    response.Write("Invalid featureId");
+                    return null;
+                }
+
+                featureId = parsedFeatureId;
+            }
+
             // --- SrsName ---
             var srsName = "EPSG:4326"; // Default SRS
             var srsNameParam = queries.Get("srsname");
@@ -203,7 +230,8 @@ namespace EspGisViewer.Routes.Wfs
                 Bbox = bbox,
                 OutputFormat = outputFormat,
                 Count = count,
-                SrsName = srsName
+                SrsName = srsName,
+                FeatureId = featureId
             };
         }
     }
