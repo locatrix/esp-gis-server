@@ -31,8 +31,11 @@ namespace EspGisViewer
             {
                 throw new FileNotFoundException("EspGisViewer x64 sqlite file not found");
             }
-            
-            string tmpPath = Path.Combine(Path.GetTempPath(), "LocatrixDeps\\" + DateTime.Now.ToString("yyyyMMddHHmmssfff"));
+
+            var x86LastWriteTicks = File.GetLastWriteTimeUtc(x86SqliteSourcePath).Ticks;
+            var x64LastWriteTicks = File.GetLastWriteTimeUtc(x64SqliteSourcePath).Ticks;
+            string dependencyVersion = $"{x86LastWriteTicks}-{x64LastWriteTicks}";
+            string tmpPath = Path.Combine(Path.GetTempPath(), "LocatrixDeps", dependencyVersion);
            
             // SQLitePCL needs the parent directory of the "x64" and "x86" folders
             SQLitePCL.Settings.BaseDirectoryForDynamicLoadNativeLibrary = tmpPath;
@@ -49,9 +52,19 @@ namespace EspGisViewer
             {
                 Directory.CreateDirectory(x64TmpPath);
             }
-            
-            File.Copy(x86SqliteSourcePath, Path.Combine(x86TmpPath, "e_sqlite3.dll"), true);
-            File.Copy(x64SqliteSourcePath, Path.Combine(x64TmpPath, "e_sqlite3.dll"), true);
+
+            CopyIfMissing(x86SqliteSourcePath, Path.Combine(x86TmpPath, "e_sqlite3.dll"));
+            CopyIfMissing(x64SqliteSourcePath, Path.Combine(x64TmpPath, "e_sqlite3.dll"));
+        }
+
+        private static void CopyIfMissing(string sourcePath, string destinationPath)
+        {
+            if (File.Exists(destinationPath))
+            {
+                return;
+            }
+
+            File.Copy(sourcePath, destinationPath, false);
         }
     }
 }

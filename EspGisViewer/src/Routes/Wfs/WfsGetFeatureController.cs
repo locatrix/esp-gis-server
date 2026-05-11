@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
+using EspGisViewer.Routes.Realestate;
 using EspGisViewer.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -63,6 +64,7 @@ namespace EspGisViewer.Routes.Wfs
 
     public class WfsGetFeatureController
     {
+        private const int MinRealestateZoom = 20;
         private readonly DataSource _dataSource;
         private readonly string _allowedType;
 
@@ -87,10 +89,33 @@ namespace EspGisViewer.Routes.Wfs
             var bbox = parsed.Bbox;
             var outputFormat = parsed.OutputFormat;
             var count = parsed.Count;
+            var zoom = parsed.Zoom;
             var srsName = parsed.SrsName;
             var featureId = parsed.FeatureId;
 
             const int DefaultRealestateCount = 200;
+
+            var requestsRealestatePins = typeNames.Any(typeName =>
+                string.Equals(typeName, RealestateFloorplanController.RealestatePinsFeatureset, StringComparison.OrdinalIgnoreCase));
+
+            if (requestsRealestatePins)
+            {
+                if (bbox == null)
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.Write("Realestate WFS requests require a bbox parameter.");
+                    return;
+                }
+
+                if (zoom == null || zoom < MinRealestateZoom)
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.Write($"Realestate WFS requests require zoom >= {MinRealestateZoom}.");
+                    return;
+                }
+            }
 
             var featureName = typeNames.FirstOrDefault();
             if (string.IsNullOrWhiteSpace(featureName))
@@ -181,7 +206,6 @@ namespace EspGisViewer.Routes.Wfs
                 {bboxPredicate}
                 {(count != null ? "LIMIT $count" : "")}
             ";
-
             List<FeatureRow> features;
             try
             {
@@ -223,11 +247,17 @@ namespace EspGisViewer.Routes.Wfs
 
                 obj["features"] = features.Select(feature =>
                 {
+                    var serverRoot = ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true);
                     var properties = new Dictionary<string, object>
                     {
                         ["GmlID"] = $"Point.{feature.Id}",
-                        ["viewerUrl"] = $"{ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true)}viewer#camera={feature.Latitude},{feature.Longitude},18.00z"
+                        ["viewerUrl"] = $"{serverRoot}viewer#camera={feature.Latitude},{feature.Longitude},18.00z"
                     };
+
+                    if (string.Equals(_allowedType, RealestateFloorplanController.RealestatePinsFeatureset, StringComparison.OrdinalIgnoreCase))
+                    {
+                        properties["floorplanUrlEndpoint"] = $"{serverRoot}realestate-floorplan/{feature.Id}";
+                    }
 
                     foreach (var kvp in GetFeatureProperties(feature))
                     {
