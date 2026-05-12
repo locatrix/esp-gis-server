@@ -88,7 +88,7 @@ export default function MapView(props: {
     if (!containerRef.current) return
     DEBUG_MODE ? console.log('MapView Initialised- mapboxgl version:', mapboxgl.version) : null
 
-    const wfsPath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/wfs') : location.pathname.replace('/viewer', '/wfs')
+    const wfsPath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/rea-wfs') : location.pathname.replace('/viewer', '/rea-wfs')
 
     const loadHash = extractHashParams()
     if (loadHash.layer) {
@@ -403,7 +403,7 @@ export default function MapView(props: {
           filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'pinState'], REAL_ESTATE_PIN_STATE_LOADING]],
           layout: {
             'icon-image': REAL_ESTATE_LOADING_IMAGE_ID,
-            'icon-size': 0.4,
+            'icon-size': 0.8,
             'icon-allow-overlap': true,
             'icon-ignore-placement': true
           }
@@ -424,13 +424,6 @@ export default function MapView(props: {
           }
         })
       }
-    }
-
-    const toEpsg3857 = (lng: number, lat: number) => {
-      const x = lng * 20037508.34 / 180
-      const clampedLat = Math.max(Math.min(lat, 85.05112878), -85.05112878)
-      const y = Math.log(Math.tan((90 + clampedLat) * Math.PI / 360)) / (Math.PI / 180) * 20037508.34 / 180
-      return { x, y }
     }
 
     const fetchRealestatePins = async () => {
@@ -458,14 +451,16 @@ export default function MapView(props: {
         return
       }
 
-      const southWest = toEpsg3857(bounds.getWest(), bounds.getSouth())
-      const northEast = toEpsg3857(bounds.getEast(), bounds.getNorth())
-      if (![southWest.x, southWest.y, northEast.x, northEast.y].every(Number.isFinite)) {
+      const west = bounds.getWest()
+      const south = bounds.getSouth()
+      const east = bounds.getEast()
+      const north = bounds.getNorth()
+      if (![west, south, east, north].every(Number.isFinite)) {
         setRealestatePinsData(EMPTY_FEATURE_COLLECTION)
         return
       }
 
-      const bbox = `${southWest.x},${southWest.y},${northEast.x},${northEast.y}`
+      const bbox = `${west},${south},${east},${north}`
       const query = new URLSearchParams({
         service: 'WFS',
         request: 'GetFeature',
