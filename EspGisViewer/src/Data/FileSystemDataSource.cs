@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Web.Configuration;
-using System.Web.Script.Serialization;
 using EspGisViewer.Util;
+using Newtonsoft.Json;
 using SQLite;
 namespace EspGisViewer.Data
 {
@@ -71,7 +71,7 @@ namespace EspGisViewer.Data
 
             if (tilesAndFeaturesFiles.Count == 0)
             {
-                throw new Exception("unable to find combined tile and features GeoPackage in ESP_GIS_FOLDER: " + new JavaScriptSerializer().Serialize(contents));
+                throw new Exception("unable to find combined tile and features GeoPackage in ESP_GIS_FOLDER: " + JsonConvert.SerializeObject(contents));
             }
 
             var tilesAndFeaturesFile = tilesAndFeaturesFiles[0];
