@@ -14,6 +14,9 @@ namespace EspGisViewer.Routes.Wmts
 
         [SQLite.Column("table_name")]
         public string SafeName { get; set; }
+
+        [SQLite.Column("display_name")]
+        public string DisplayName { get; set; }
     }
 
     public class WmtsCapabilitiesController
@@ -30,8 +33,8 @@ namespace EspGisViewer.Routes.Wmts
             await _dataSource.Refresh(true);
 
             var rows = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<TileName>("" +
-                                                                                 "SELECT DISTINCT tileset AS identifier, tileset AS table_name " +
-                                                                                 "FROM all_tiles", (Dictionary<string, string>) null));
+                                                                                 "SELECT DISTINCT t.tileset AS identifier, t.tileset AS table_name, m.display_name AS display_name " +
+                                                                                 "FROM all_tiles t LEFT JOIN tileset_metadata m ON m.tileset = t.tileset", (Dictionary<string, string>) null));
 
             var renderedLayers = rows.ToList();
 
@@ -55,9 +58,10 @@ namespace EspGisViewer.Routes.Wmts
             var layers = "";
             foreach (var layer in renderedLayers)
             {
+                var title = string.IsNullOrEmpty(layer.DisplayName) ? layer.Name : layer.DisplayName;
                 layers += $@"
     <Layer>
-      <ows:Title>Locatrix ESP - {layer.Name}</ows:Title>
+      <ows:Title>Locatrix ESP - {title}</ows:Title>
       <ows:Identifier>{layer.Name}</ows:Identifier>
       <ows:WGS84BoundingBox>
         <ows:LowerCorner>113.503234326 -43.280603544</ows:LowerCorner>

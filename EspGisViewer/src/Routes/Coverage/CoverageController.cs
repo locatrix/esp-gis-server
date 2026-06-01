@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
-using EspGisViewer.Util;
+using Newtonsoft.Json;
 
 namespace EspGisViewer.Routes.Coverage
 {
@@ -13,6 +12,12 @@ namespace EspGisViewer.Routes.Coverage
     {
         [SQLite.Column("layer_level")]
         public string LayerLevel { get; set; }
+
+        [SQLite.Column("display_name")]
+        public string DisplayName { get; set; }
+
+        [SQLite.Column("kind")]
+        public string Kind { get; set; }
     }
 
     public class SqliteMaster
@@ -67,9 +72,10 @@ namespace EspGisViewer.Routes.Coverage
             try
             {
                 levels = await _dataSource.TilesAndFeatures.QueryAsync<LayerLevelRow>(@"
-                SELECT DISTINCT tileset as layer_level
-                FROM all_tiles  
-                WHERE zoom_level = $zoom AND tile_column = $x AND tile_row = $y
+                SELECT DISTINCT t.tileset as layer_level, m.display_name as display_name, m.kind as kind
+                FROM all_tiles t
+                LEFT JOIN tileset_metadata m ON m.tileset = t.tileset
+                WHERE t.zoom_level = $zoom AND t.tile_column = $x AND t.tile_row = $y
                 ", parameters2);
             }
             catch (Exception e)
@@ -78,11 +84,16 @@ namespace EspGisViewer.Routes.Coverage
                 return;
             }
 
-            var rows = levels.ConvertAll(t => t.LayerLevel).Distinct().ToList();
+            var rows = levels.GroupBy(r => r.LayerLevel).Select(g => g.First()).ToList();
 
-            rows.Sort(new LayerSorter());
+            rows.Sort((a, b) => new LayerSorter().Compare(a.LayerLevel, b.LayerLevel));
 
-            var json = $"[{string.Join(",", rows.ConvertAll(r => $"\"{r}\""))}]";
+            var json = JsonConvert.SerializeObject(rows.Select(r => new
+            {
+                value = r.LayerLevel,
+                label = r.DisplayName ?? r.LayerLevel,
+                kind = r.Kind ?? "name"
+            }));
 
             context.Response.StatusCode = 200;
             context.Response.ContentType = "application/json";
