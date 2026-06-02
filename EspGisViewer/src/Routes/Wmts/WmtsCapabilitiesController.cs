@@ -58,10 +58,9 @@ namespace EspGisViewer.Routes.Wmts
             var layers = "";
             foreach (var layer in renderedLayers)
             {
-                var title = string.IsNullOrEmpty(layer.DisplayName) ? layer.Name : layer.DisplayName;
                 layers += $@"
     <Layer>
-      <ows:Title>Locatrix ESP - {title}</ows:Title>
+      <ows:Title>Locatrix ESP - {layer.DisplayName}</ows:Title>
       <ows:Identifier>{layer.Name}</ows:Identifier>
       <ows:WGS84BoundingBox>
         <ows:LowerCorner>113.503234326 -43.280603544</ows:LowerCorner>

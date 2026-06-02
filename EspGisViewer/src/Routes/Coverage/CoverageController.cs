@@ -94,7 +94,7 @@ namespace EspGisViewer.Routes.Coverage
 
             var json = JsonConvert.SerializeObject(rows.Select(r =>
             {
-                if (r.DisplayName != null && string.IsNullOrWhiteSpace(r.DisplayName))
+                if (string.IsNullOrWhiteSpace(r.DisplayName))
                 {
                     throw new InvalidOperationException(
                         $"tileset_metadata.display_name for tileset '{r.LayerLevel}' is blank; expected NULL or a non-empty value.");
@@ -109,7 +109,7 @@ namespace EspGisViewer.Routes.Coverage
                 return new
                 {
                     value = r.LayerLevel,
-                    label = r.DisplayName ?? r.LayerLevel,
+                    label = r.DisplayName,
                     kind = r.Kind
                 };
             }));
