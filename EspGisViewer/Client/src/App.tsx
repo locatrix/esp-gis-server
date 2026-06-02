@@ -55,25 +55,19 @@ export default function App() {
     }
   }, [selected])
 
-  if (!coverage.some(e => e.value === 'coverage')) {
-    coverage.unshift({ value: 'coverage', label: 'Coverage', kind: 'category' })
-  }
-  
-  // remove irrelevant LocatrixESPCoverage
-  if (coverage.some(item => item.value === 'LocatrixESPCoverage')) {
-    const indexToRemove = coverage.findIndex(item => item.value === 'LocatrixESPCoverage');
-    if (indexToRemove !== -1) {
-      coverage.splice(indexToRemove, 1);
-    }
-  }
-
   if (error) {
     return <Title order={3}>Error: {error.message}</Title>
   }
 
-  const categories = coverage.filter(item => item.kind === 'category')
-  const tileLevels = coverage.filter(item => item.kind === 'level')
-  const tileNames = coverage.filter(item => item.kind === 'name')
+  const normalizedCoverage = coverage
+    .filter(item => item.value !== 'LocatrixESPCoverage')
+  if (!normalizedCoverage.some(e => e.value === 'coverage')) {
+    normalizedCoverage.unshift({ value: 'coverage', label: 'Coverage', kind: 'category' })
+  }
+
+  const categories = normalizedCoverage.filter(item => item.kind === 'category')
+  const tileLevels = normalizedCoverage.filter(item => item.kind === 'level')
+  const tileNames = normalizedCoverage.filter(item => item.kind === 'name')
 
   return (
     <>

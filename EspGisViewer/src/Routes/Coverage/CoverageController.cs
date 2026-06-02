@@ -40,6 +40,9 @@ namespace EspGisViewer.Routes.Coverage
 
     public class CoverageController
     {
+        private static readonly HashSet<string> AllowedKinds =
+            new HashSet<string>(StringComparer.Ordinal) { "category", "level", "name" };
+
         private readonly DataSource _dataSource;
 
         public CoverageController(DataSource dataSource)
@@ -86,13 +89,29 @@ namespace EspGisViewer.Routes.Coverage
 
             var rows = levels.GroupBy(r => r.LayerLevel).Select(g => g.First()).ToList();
 
-            rows.Sort((a, b) => new LayerSorter().Compare(a.LayerLevel, b.LayerLevel));
+            var sorter = new LayerSorter();
+            rows.Sort((a, b) => sorter.Compare(a.LayerLevel, b.LayerLevel));
 
-            var json = JsonConvert.SerializeObject(rows.Select(r => new
+            var json = JsonConvert.SerializeObject(rows.Select(r =>
             {
-                value = r.LayerLevel,
-                label = r.DisplayName ?? r.LayerLevel,
-                kind = r.Kind ?? "name"
+                if (r.DisplayName != null && string.IsNullOrWhiteSpace(r.DisplayName))
+                {
+                    throw new InvalidOperationException(
+                        $"tileset_metadata.display_name for tileset '{r.LayerLevel}' is blank; expected NULL or a non-empty value.");
+                }
+
+                if (!AllowedKinds.Contains(r.Kind))
+                {
+                    throw new InvalidOperationException(
+                        $"tileset_metadata.kind for tileset '{r.LayerLevel}' is '{r.Kind}'; expected one of: category, level, name.");
+                }
+
+                return new
+                {
+                    value = r.LayerLevel,
+                    label = r.DisplayName ?? r.LayerLevel,
+                    kind = r.Kind
+                };
             }));
 
             context.Response.StatusCode = 200;
