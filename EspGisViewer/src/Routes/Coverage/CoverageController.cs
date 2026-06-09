@@ -55,14 +55,9 @@ namespace EspGisViewer.Routes.Coverage
         {
             await _dataSource.Refresh(false);
 
-            var tileMatrix = parameters["tileMatrix"];
-            var tileCol = parameters["tileCol"];
-            var tileRow = parameters["tileRow"];
-
-            // Ensure all are ints
-            _ = int.Parse(tileMatrix);
-            _ = int.Parse(tileCol);
-            _ = int.Parse(tileRow);
+            var tileMatrix = int.Parse(parameters["tileMatrix"]);
+            var tileCol = int.Parse(parameters["tileCol"]);
+            var tileRow = int.Parse(parameters["tileRow"]);
 
             List<LayerLevelRow> levels;
 

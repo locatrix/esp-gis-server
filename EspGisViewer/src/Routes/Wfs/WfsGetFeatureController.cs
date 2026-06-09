@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Security;
 using System.Text;
@@ -10,7 +9,6 @@ using EspGisViewer.Data;
 using EspGisViewer.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using SQLite;
 using System.Reflection;
 using Formatting = Newtonsoft.Json.Formatting;
 namespace EspGisViewer.Routes.Wfs
@@ -143,7 +141,7 @@ namespace EspGisViewer.Routes.Wfs
             if (featureId != null)
             {
                 idPredicate = "AND id = ?";
-                args.Add(featureId.Value.ToString());
+                args.Add(featureId.Value);
             }
 
             var bboxPredicate = "";
@@ -164,7 +162,7 @@ namespace EspGisViewer.Routes.Wfs
                 {
                     foreach (var t in bbox)
                     {
-                        bboxArgs.Add(t.ToString(CultureInfo.InvariantCulture));
+                        bboxArgs.Add(t);
                     }
                 }
             }
@@ -172,7 +170,7 @@ namespace EspGisViewer.Routes.Wfs
 
             if (count != null)
             {
-                args.Add(count.Value.ToString());
+                args.Add(count.Value);
             }
 
             string sql = $@"
