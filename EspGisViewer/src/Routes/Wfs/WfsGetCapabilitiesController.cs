@@ -31,7 +31,7 @@ namespace EspGisViewer.Routes.Wfs
             var featureData = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<FeatureData>(@"
               SELECT name
               FROM feature_schemas
-            ", (Dictionary<string, string>)null));
+            "));
 
             var features = featureData.Select(fd => fd.Feature)
                 .Where(f => !string.IsNullOrWhiteSpace(f))

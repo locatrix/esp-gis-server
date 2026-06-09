@@ -64,12 +64,6 @@ namespace EspGisViewer.Routes.Coverage
             _ = int.Parse(tileCol);
             _ = int.Parse(tileRow);
 
-            var parameters2 = new Dictionary<string, string>
-            {
-                { "$zoom", tileMatrix },
-                { "$x", tileCol },
-                { "$y", tileRow }
-            };
             List<LayerLevelRow> levels;
 
             try
@@ -78,8 +72,8 @@ namespace EspGisViewer.Routes.Coverage
                 SELECT DISTINCT t.tileset as layer_level, m.display_name as display_name, m.kind as kind
                 FROM all_tiles t
                 LEFT JOIN tileset_metadata m ON m.tileset = t.tileset
-                WHERE t.zoom_level = $zoom AND t.tile_column = $x AND t.tile_row = $y
-                ", parameters2);
+                WHERE t.zoom_level = ? AND t.tile_column = ? AND t.tile_row = ?
+                ", tileMatrix, tileCol, tileRow);
             }
             catch (Exception e)
             {

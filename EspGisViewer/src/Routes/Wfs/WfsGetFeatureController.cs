@@ -128,49 +128,51 @@ namespace EspGisViewer.Routes.Wfs
             var columnRows = await _dataSource.TilesAndFeatures.QueryAsync<Column>($"PRAGMA table_info({quotedTable})");
             var columnNames = new HashSet<string>(columnRows.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
 
-            // Feature Params
-            var queryParams = new Dictionary<string, string>();
-
-            // Bounding Box Params
-            if (bbox != null)
-            {
-                for (var i = 0; i < bbox.Length; i++)
-                {
-                    queryParams[$"$bbox{i}"] = bbox[i].ToString(CultureInfo.InvariantCulture);
-                }
-            }
-
             // Count Param
-            if (count != null)
-            {
-                queryParams["$count"] = count.ToString();
-            }
-            else if (string.Equals(_allowedType, "realestate-floorplans", StringComparison.OrdinalIgnoreCase)
+            if (count == null
+                && string.Equals(_allowedType, "realestate-floorplans", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
             {
                 count = DefaultRealestateCount;
-                queryParams["$count"] = count.ToString();
+            }
+
+            // Positional (?) arguments, ordered to match placeholder appearance in the SQL.
+            var args = new List<object>();
+
+            var idPredicate = "";
+            if (featureId != null)
+            {
+                idPredicate = "AND id = ?";
+                args.Add(featureId.Value.ToString());
             }
 
             var bboxPredicate = "";
+            var bboxArgs = new List<object>();
             if (bbox != null)
             {
                 if (srsName == "EPSG:4326" && columnNames.Contains("latitude") && columnNames.Contains("longitude"))
                 {
                     // BBOX is minLon, minLat, maxLon, maxLat
-                    bboxPredicate = "AND longitude > $bbox0 AND latitude > $bbox1 AND longitude < $bbox2 AND latitude < $bbox3";
+                    bboxPredicate = "AND longitude > ? AND latitude > ? AND longitude < ? AND latitude < ?";
                 }
                 else if (srsName == "EPSG:3857" && columnNames.Contains("x") && columnNames.Contains("y"))
                 {
-                    bboxPredicate = "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3";
+                    bboxPredicate = "AND x > ? AND y > ? AND x < ? AND y < ?";
+                }
+
+                if (bboxPredicate != "")
+                {
+                    foreach (var t in bbox)
+                    {
+                        bboxArgs.Add(t.ToString(CultureInfo.InvariantCulture));
+                    }
                 }
             }
+            args.AddRange(bboxArgs);
 
-            var idPredicate = "";
-            if (featureId != null)
+            if (count != null)
             {
-                idPredicate = "AND id = $featureId";
-                queryParams["$featureId"] = featureId.Value.ToString();
+                args.Add(count.Value.ToString());
             }
 
             string sql = $@"
@@ -179,13 +181,13 @@ namespace EspGisViewer.Routes.Wfs
                 WHERE 1=1
                 {idPredicate}
                 {bboxPredicate}
-                {(count != null ? "LIMIT $count" : "")}
+                {(count != null ? "LIMIT ?" : "")}
             ";
 
             List<FeatureRow> features;
             try
             {
-                features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, queryParams);
+                features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, args.ToArray());
             }
             catch (Exception error)
             {
@@ -196,11 +198,6 @@ namespace EspGisViewer.Routes.Wfs
             int numberMatched = features.Count;
             if (count != null)
             {
-                // The next query doesn't use the $count param, since sqlite can
-                // error out if you include params that don't match your sql,
-                // so make sure to remove it!
-                var remainingQueryParams = queryParams.Where(kvp => kvp.Key != "$count").ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
                 // It is possible for features matched to differ from the features returned
                 // This additional query returns the total number of features which match the request parameters
                 string sql1 = $@"
@@ -209,7 +206,7 @@ namespace EspGisViewer.Routes.Wfs
                     WHERE 1=1
                     {bboxPredicate}
                 ";
-                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(sql1, remainingQueryParams);
+                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(sql1, bboxArgs.ToArray());
                 numberMatched = totalCountResult[0].TotalCount;
             }
 
