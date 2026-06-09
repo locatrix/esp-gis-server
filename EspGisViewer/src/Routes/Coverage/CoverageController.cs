@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
-using Newtonsoft.Json;
+using EspGisViewer.Util;
 
 namespace EspGisViewer.Routes.Coverage
 {
@@ -12,12 +13,6 @@ namespace EspGisViewer.Routes.Coverage
     {
         [SQLite.Column("layer_level")]
         public string LayerLevel { get; set; }
-
-        [SQLite.Column("display_name")]
-        public string DisplayName { get; set; }
-
-        [SQLite.Column("kind")]
-        public string Kind { get; set; }
     }
 
     public class SqliteMaster
@@ -40,9 +35,6 @@ namespace EspGisViewer.Routes.Coverage
 
     public class CoverageController
     {
-        private static readonly HashSet<string> AllowedKinds =
-            new HashSet<string>(StringComparer.Ordinal) { "category", "level", "name" };
-
         private readonly DataSource _dataSource;
 
         public CoverageController(DataSource dataSource)
@@ -75,10 +67,9 @@ namespace EspGisViewer.Routes.Coverage
             try
             {
                 levels = await _dataSource.TilesAndFeatures.QueryAsync<LayerLevelRow>(@"
-                SELECT DISTINCT t.tileset as layer_level, m.display_name as display_name, m.kind as kind
-                FROM all_tiles t
-                LEFT JOIN tileset_metadata m ON m.tileset = t.tileset
-                WHERE t.zoom_level = $zoom AND t.tile_column = $x AND t.tile_row = $y
+                SELECT DISTINCT tileset as layer_level
+                FROM all_tiles  
+                WHERE zoom_level = $zoom AND tile_column = $x AND tile_row = $y
                 ", parameters2);
             }
             catch (Exception e)
@@ -87,32 +78,11 @@ namespace EspGisViewer.Routes.Coverage
                 return;
             }
 
-            var rows = levels.GroupBy(r => r.LayerLevel).Select(g => g.First()).ToList();
+            var rows = levels.ConvertAll(t => t.LayerLevel).Distinct().ToList();
 
-            var sorter = new LayerSorter();
-            rows.Sort((a, b) => sorter.Compare(a.LayerLevel, b.LayerLevel));
+            rows.Sort(new LayerSorter());
 
-            var json = JsonConvert.SerializeObject(rows.Select(r =>
-            {
-                if (string.IsNullOrWhiteSpace(r.DisplayName))
-                {
-                    throw new InvalidOperationException(
-                        $"tileset_metadata.display_name for tileset '{r.LayerLevel}' is blank; expected NULL or a non-empty value.");
-                }
-
-                if (!AllowedKinds.Contains(r.Kind))
-                {
-                    throw new InvalidOperationException(
-                        $"tileset_metadata.kind for tileset '{r.LayerLevel}' is '{r.Kind}'; expected one of: category, level, name.");
-                }
-
-                return new
-                {
-                    value = r.LayerLevel,
-                    label = r.DisplayName,
-                    kind = r.Kind
-                };
-            }));
+            var json = $"[{string.Join(",", rows.ConvertAll(r => $"\"{r}\""))}]";
 
             context.Response.StatusCode = 200;
             context.Response.ContentType = "application/json";
