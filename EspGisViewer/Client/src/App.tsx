@@ -2,10 +2,15 @@ import {useEffect, useState} from 'react'
 import {Button, Flex, Select, Title, useMantineTheme} from "@mantine/core";
 import MapView from "./MapView.tsx";
 import {useQuery} from "@tanstack/react-query";
-import {formatLevel, isNumber, isTileName, type Tileset} from "./formatLevel.ts";
 import {useColorScheme, useDidUpdate, useThrottledState} from "@mantine/hooks";
 import {usePop} from "./components/Pop.tsx";
 import { DEBUG_MODE, SERVER_TARGET_OVERRIDE } from './main.tsx';
+
+interface LayerEntry {
+  value: string
+  label: string
+  kind: 'category' | 'level' | 'name'
+}
 
 export default function App() {
   const theme = useColorScheme()
@@ -17,26 +22,26 @@ export default function App() {
     DEBUG_MODE ? console.log('WMTS Path:', wmtsPath) : null
   }, [])
 
-  const [selected, setSelected] = useState<Tileset>('coverage')
-  const [tempSelected, setTempSelected] = useThrottledState<Tileset | null>(null, 500)
-  
+  const [selected, setSelected] = useState<string>('coverage')
+  const [tempSelected, setTempSelected] = useThrottledState<string | null>(null, 500)
+
   const [zoom, setZoom] = useState(4)
   const [x, setX] = useState(0)
   const [y, setY] = useState(0)
 
-  const [coverage, setCoverage] = useState<Tileset[]>(['coverage'])
-  
+  const [coverage, setCoverage] = useState<LayerEntry[]>([{ value: 'coverage', label: 'Coverage', kind: 'category' }])
+
   const { popOpen, Pop } = usePop()
 
   const { isPending, error } = useQuery({
     queryKey: ['coverage', zoom, x, y],
     queryFn: async () => {
       const resp = await fetch(`${coveragePath}/${zoom}/${x}/${y}`)
-      const data: Tileset[] = await resp.json()
+      const data: LayerEntry[] = await resp.json()
       setCoverage(data)
 
       // only apply scoped selection when zoom is not the default value
-      if (zoom !== 4 && !data.includes(selected)) {
+      if (zoom !== 4 && !data.some(e => e.value === selected)) {
         setSelected('coverage')
       }
       
@@ -50,33 +55,25 @@ export default function App() {
     }
   }, [selected])
 
-  if (!coverage.includes("coverage")) {
-    coverage.unshift("coverage")
-  }
-  
-  // remove irrelevant LocatrixESPCoverage
-  if (coverage.includes('LocatrixESPCoverage' as any)) {
-    const indexToRemove = coverage.findIndex(item => item === 'LocatrixESPCoverage');
-    if (indexToRemove !== -1) {
-      coverage.splice(indexToRemove, 1);
-    }
-  }
-
   if (error) {
     return <Title order={3}>Error: {error.message}</Title>
   }
-  
-  const coverageItems = coverage.map(item => ({ value: item, label: formatLevel(item) }))
 
-  const categories = coverageItems.filter(item => !isNumber(item.value) && !isTileName(item.value))
-  const tileLevels = coverageItems.filter(item => isNumber(item.value))
-  const tileNames = coverageItems.filter(item => isTileName(item.value))
+  const normalizedCoverage = coverage
+    .filter(item => item.value !== 'LocatrixESPCoverage')
+  if (!normalizedCoverage.some(e => e.value === 'coverage')) {
+    normalizedCoverage.unshift({ value: 'coverage', label: 'Coverage', kind: 'category' })
+  }
+
+  const categories = normalizedCoverage.filter(item => item.kind === 'category')
+  const tileLevels = normalizedCoverage.filter(item => item.kind === 'level')
+  const tileNames = normalizedCoverage.filter(item => item.kind === 'name')
 
   return (
     <>
       <MapView
         selectedLayer={tempSelected ?? selected}
-        setSelectedLayer={selected => setSelected(selected as Tileset)}
+        setSelectedLayer={setSelected}
         onChangeView={(x, y, zoom) => {
           setX(x)
           setY(y)
@@ -96,7 +93,7 @@ export default function App() {
           allowDeselect={false}
           onChange={(value) => {
             if (value != null) {
-              setSelected(value as Tileset)
+              setSelected(value)
             }
           }}
           checkIconPosition="right"
