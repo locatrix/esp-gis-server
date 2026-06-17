@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using System.Web.Configuration;
 using SQLite;
 namespace EspGisViewer.Data
 {
@@ -101,16 +99,14 @@ namespace EspGisViewer.Data
         /// </summary>
         /// <param name="action">Action to perform with the connection.</param>
         public Task Use(Util.Action<SQLiteAsyncConnection, Task> action) => Use(async db => { await action(db); return true; });
-        public Task<List<T>> QueryAsync<T>(string sql, Dictionary<string, string> parameters = null) where T : new()
+        public Task<List<T>> QueryAsync<T>(string sql, params object[] args) where T : new()
         {
-            // TODO: Get parameterized queries working
-            // for now, just do a string replace
-            if (parameters != null)
+            if (args == null || args.Length == 0)
             {
-                sql = parameters.Aggregate(sql, (current, entry) => current.Replace(entry.Key, $"\"{entry.Value}\""));
+                return Use(db => db.QueryAsync<T>(sql));
             }
-            
-            return Use(db => db.QueryAsync<T>(sql));
+
+            return Use(db => db.QueryAsync<T>(sql, args));
         }
     }
 }
