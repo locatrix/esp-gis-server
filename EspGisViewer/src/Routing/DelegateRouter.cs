@@ -53,7 +53,7 @@ namespace EspGisViewer.Routing
             return Task.Run(async () =>
             {
                 var parameters = new Dictionary<string, string>();
-                var path = context.Request.Url.AbsolutePath;
+                var path = GetApplicationRelativePath(context.Request);
 
                 try
                 {
@@ -92,6 +92,63 @@ namespace EspGisViewer.Routing
         public bool IsReusable
         {
             get => true;
+        }
+
+        private static string GetApplicationRelativePath(HttpRequest request)
+        {
+            var path = request.AppRelativeCurrentExecutionFilePath;
+
+            if (!string.IsNullOrEmpty(path))
+            {
+                if (path.StartsWith("~", StringComparison.Ordinal))
+                {
+                    path = path.Substring(1);
+                }
+
+                if (!string.IsNullOrEmpty(request.PathInfo))
+                {
+                    path += request.PathInfo;
+                }
+
+                return NormalizeRoutePath(path);
+            }
+
+            return GetApplicationRelativePath(request.Url.AbsolutePath, request.ApplicationPath);
+        }
+
+        private static string GetApplicationRelativePath(string path, string applicationPath)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return "/";
+            }
+
+            if (!string.IsNullOrEmpty(applicationPath) && applicationPath != "/")
+            {
+                applicationPath = applicationPath.TrimEnd('/');
+
+                if (path.Equals(applicationPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return "/";
+                }
+
+                if (path.StartsWith(applicationPath + "/", StringComparison.OrdinalIgnoreCase))
+                {
+                    path = path.Substring(applicationPath.Length);
+                }
+            }
+
+            return NormalizeRoutePath(path);
+        }
+
+        private static string NormalizeRoutePath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return "/";
+            }
+
+            return path.StartsWith("/") ? path : "/" + path;
         }
     }
 
