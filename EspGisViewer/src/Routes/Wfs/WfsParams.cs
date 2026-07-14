@@ -12,6 +12,7 @@ namespace EspGisViewer.Routes.Wfs
         public double[] Bbox { get; set; }
         public string OutputFormat { get; set; }
         public int? Count { get; set; }
+        public int? Zoom { get; set; }
         public string SrsName { get; set; }
         public int? FeatureId { get; set; }
 
@@ -193,6 +194,22 @@ namespace EspGisViewer.Routes.Wfs
                 featureId = parsedFeatureId;
             }
 
+            // --- Zoom ---
+            int? zoom = null;
+            var zoomParam = queries.Get("zoom");
+            if (!string.IsNullOrEmpty(zoomParam))
+            {
+                if (!int.TryParse(zoomParam.Trim(), out var parsedZoom) || parsedZoom < 0)
+                {
+                    response.StatusCode = 400;
+                    response.ContentType = "text/plain";
+                    response.Write("Invalid zoom");
+                    return null;
+                }
+
+                zoom = parsedZoom;
+            }
+
             // --- SrsName ---
             var srsName = "EPSG:4326"; // Default SRS
             var srsNameParam = queries.Get("srsname");
@@ -230,6 +247,7 @@ namespace EspGisViewer.Routes.Wfs
                 Bbox = bbox,
                 OutputFormat = outputFormat,
                 Count = count,
+                Zoom = zoom,
                 SrsName = srsName,
                 FeatureId = featureId
             };

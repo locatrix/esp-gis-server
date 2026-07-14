@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Routes.Coverage;
+using EspGisViewer.Routes.Realestate;
 using EspGisViewer.Routes.Viewer;
 using EspGisViewer.Routes.Wfs;
 using EspGisViewer.Routes.Wmts;
@@ -31,14 +32,14 @@ namespace EspGisViewer.Routes
                 // Route: /wfs
                 WfsRoute.Register(router, dataSource);
 
-                // Route: /realestate/wfs
-                using (router.Route("realestate"))
-                {
-                    WfsRoute.Register(router, dataSource, "wfs", "realestate-floorplans");
-                }
+                // Route: /rea-wfs
+                WfsRoute.Register(router, dataSource, "rea-wfs", RealestateFloorplanController.RealestatePinsFeatureset);
 
                 // Route: /coverage
                 CoverageRoute.Register(router, dataSource);
+
+                // Route: /realestate-floorplan/{featureId}
+                RealestateFloorplanRoute.Register(router, dataSource);
 
                 // blank favicon so chrome stops spamming dev tools
                 using (router.Route("favicon.ico"))

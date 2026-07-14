@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from "react"
-import { ActionIcon, Box, Button, Card, Group, Modal, Text } from "@mantine/core"
-import mapboxgl, { Map, MercatorCoordinate, type LngLatLike } from "mapbox-gl"
-import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch"
+import { useEffect, useRef } from "react"
+import mapboxgl, { MercatorCoordinate, type LngLatLike } from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { DEBUG_MODE, SERVER_TARGET_OVERRIDE } from "./main"
 
@@ -14,8 +12,43 @@ const INITIAL_ZOOM = 4
 
 // Apply a zoom offset to account for Leaflet vs Mapbox zoom level differences
 const LEAFLET_ZOOM_OFFSET = 1
-const REAL_ESTATE_SOURCE_ID = "realestate"
-const REAL_ESTATE_LAYER_ID = "realestate-pins"
+const REAL_ESTATE_SOURCE_ID = 'realestate-pins'
+const REAL_ESTATE_CLUSTER_LAYER_ID = 'realestate-pins-clusters'
+const REAL_ESTATE_CLUSTER_COUNT_LAYER_ID = 'realestate-pins-cluster-count'
+const REAL_ESTATE_LOADING_LAYER_ID = 'realestate-pins-loading'
+const REAL_ESTATE_POINT_LAYER_ID = 'realestate-pins-points'
+const REAL_ESTATE_LOADING_IMAGE_ID = 'realestate-pins-loading-spinner'
+const REAL_ESTATE_FEATURESET = 'realestate_pins'
+const MAX_REAL_ESTATE_FEATURES = 10000
+const MIN_REAL_ESTATE_ZOOM = 20
+const REAL_ESTATE_PIN_STATE_LOADING = 'loading'
+const REAL_ESTATE_PIN_STATE_READY = 'ready'
+const FLOORPLAN_HIT_CACHE_DURATION_MS = 30 * 60 * 1000
+const FLOORPLAN_MISS_CACHE_DURATION_MS = 10 * 60 * 1000
+
+type RealestateFeature = {
+  type: 'Feature'
+  geometry: {
+    type: string
+    coordinates: number[]
+  }
+  properties: Record<string, unknown>
+}
+
+type RealestateFeatureCollection = {
+  type: 'FeatureCollection'
+  features: RealestateFeature[]
+}
+
+type FloorplanCacheEntry = {
+  floorplanUrl: string | null
+  expiresAtMs: number
+}
+
+const EMPTY_FEATURE_COLLECTION: RealestateFeatureCollection = {
+  type: 'FeatureCollection',
+  features: []
+}
 
 type HashParams = {
   camera?: {
@@ -40,19 +73,7 @@ export default function MapView(props: {
   // Mapbox Container & Map Refs
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
-  const realestateRequestIdRef = useRef(0)
-  const realestateViewportRef = useRef<HTMLDivElement | null>(null)
-  const realestateTransformRef = useRef<ReactZoomPanPinchRef | null>(null)
-  const [selectedRealestate, setSelectedRealestate] = useState<{
-    id?: string,
-    url: string,
-    address?: string,
-    lat?: number,
-    lng?: number
-  } | null>(null)
-  const [isRealestateExpanded, setIsRealestateExpanded] = useState(false)
-  const [realestateAnchor, setRealestateAnchor] = useState<{ x: number, y: number } | null>(null)
-  const [realestateImageSize, setRealestateImageSize] = useState<{ width: number, height: number } | null>(null)
+  const popupRef = useRef<mapboxgl.Popup | null>(null)
 
   // Setup refs to avoid re-creating event handlers
   const selectedLayerRef = useRef(props.selectedLayer)
@@ -66,6 +87,8 @@ export default function MapView(props: {
   useEffect(() => {
     if (!containerRef.current) return
     DEBUG_MODE ? console.log('MapView Initialised- mapboxgl version:', mapboxgl.version) : null
+
+    const wfsPath = SERVER_TARGET_OVERRIDE ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/rea-wfs') : location.pathname.replace('/viewer', '/rea-wfs')
 
     const loadHash = extractHashParams()
     if (loadHash.layer) {
@@ -86,15 +109,461 @@ export default function MapView(props: {
 
     mapRef.current = map
 
+    let pinsAbortController: AbortController | null = null
+    let floorplanAbortController: AbortController | null = null
+    let realestateLoadGeneration = 0
+    const floorplanCache = new Map<string, FloorplanCacheEntry>()
+
+    const setRealestatePinsData = (featureCollection: RealestateFeatureCollection) => {
+      const source = map.getSource(REAL_ESTATE_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
+      if (source == null) {
+        return
+      }
+
+      source.setData(featureCollection as any)
+    }
+
+    const cancelRealestateLoading = () => {
+      pinsAbortController?.abort()
+      pinsAbortController = null
+      floorplanAbortController?.abort()
+      floorplanAbortController = null
+      realestateLoadGeneration += 1
+    }
+
+    const createLoadingSpinnerImage = () => {
+      const size = 64
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const context = canvas.getContext('2d')
+
+      return {
+        width: size,
+        height: size,
+        data: new Uint8Array(size * size * 4),
+        onAdd() {
+        },
+        render() {
+          if (context == null) {
+            return false
+          }
+
+          const center = size / 2
+          const radius = size * 0.24
+          const strokeWidth = size * 0.1
+          const start = (performance.now() / 1000) * Math.PI * 1.8
+
+          context.clearRect(0, 0, size, size)
+          context.lineCap = 'round'
+
+          context.beginPath()
+          context.strokeStyle = 'rgba(15, 118, 110, 0.2)'
+          context.lineWidth = strokeWidth
+          context.arc(center, center, radius, 0, Math.PI * 2)
+          context.stroke()
+
+          context.beginPath()
+          context.strokeStyle = '#0f766e'
+          context.lineWidth = strokeWidth
+          context.arc(center, center, radius, start, start + Math.PI * 1.2)
+          context.stroke()
+
+          const imageData = context.getImageData(0, 0, size, size)
+          this.data = imageData.data
+          map.triggerRepaint()
+          return true
+        }
+      } as mapboxgl.StyleImageInterface
+    }
+
+    const cloneFeatureCollection = (features: RealestateFeature[]): RealestateFeatureCollection => ({
+      type: 'FeatureCollection',
+      features: features.map(feature => ({
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: [...feature.geometry.coordinates]
+        },
+        properties: { ...feature.properties }
+      }))
+    })
+
+    const normaliseRealestatePins = (featureCollection: unknown): RealestateFeatureCollection => {
+      const features = Array.isArray((featureCollection as RealestateFeatureCollection | null)?.features)
+        ? (featureCollection as RealestateFeatureCollection).features
+        : []
+
+      return {
+        type: 'FeatureCollection',
+        features: features.map((feature, index) => ({
+          ...feature,
+          properties: {
+            ...(feature.properties ?? {}),
+            realestatePinKey: String(feature.properties?.id ?? index),
+            pinState: REAL_ESTATE_PIN_STATE_LOADING,
+            floorplanUrl: ''
+          }
+        }))
+      }
+    }
+
+    const renderFloorplanPopup = (lngLat: mapboxgl.LngLat, floorplanUrl: string) => {
+      const root = document.createElement('div')
+      root.style.maxWidth = '320px'
+
+      const image = document.createElement('img')
+      image.src = floorplanUrl
+      image.alt = 'Floorplan'
+      image.style.display = 'block'
+      image.style.width = '100%'
+      image.style.borderRadius = '8px'
+      image.style.marginBottom = '8px'
+
+      root.appendChild(image)
+      showPopupContent(lngLat, root)
+    }
+
+    const fetchFloorplanUrl = async (endpoint: string, signal?: AbortSignal) => {
+      const now = Date.now()
+      const cached = floorplanCache.get(endpoint)
+      if (cached != null) {
+        if (cached.expiresAtMs > now) {
+          return cached.floorplanUrl
+        }
+
+        floorplanCache.delete(endpoint)
+      }
+
+      const response = await fetch(endpoint, signal == null ? undefined : { signal })
+      if (response.status === 404) {
+        floorplanCache.set(endpoint, {
+          floorplanUrl: null,
+          expiresAtMs: now + FLOORPLAN_MISS_CACHE_DURATION_MS
+        })
+        return null
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to load floorplan URL: ${response.status}`)
+      }
+
+      const floorplanUrl = (await response.text()).trim()
+      if (floorplanUrl === '') {
+        floorplanCache.set(endpoint, {
+          floorplanUrl: null,
+          expiresAtMs: now + FLOORPLAN_MISS_CACHE_DURATION_MS
+        })
+        return null
+      }
+
+      floorplanCache.set(endpoint, {
+        floorplanUrl,
+        expiresAtMs: now + FLOORPLAN_HIT_CACHE_DURATION_MS
+      })
+
+      return floorplanUrl
+    }
+
+    const resolveRealestateFloorplans = async (featureCollection: RealestateFeatureCollection, generation: number) => {
+      const activeFeatures = featureCollection.features.map(feature => ({
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: [...feature.geometry.coordinates]
+        },
+        properties: { ...feature.properties }
+      }))
+
+      const requestAbortController = new AbortController()
+      floorplanAbortController = requestAbortController
+
+      for (const feature of [...activeFeatures]) {
+        if (generation !== realestateLoadGeneration || requestAbortController.signal.aborted) {
+          return
+        }
+
+        const pinKey = String(feature.properties.realestatePinKey ?? '')
+        const endpoint = typeof feature.properties.floorplanUrlEndpoint === 'string'
+          ? feature.properties.floorplanUrlEndpoint
+          : ''
+
+        const activeIndex = activeFeatures.findIndex(candidate => String(candidate.properties.realestatePinKey ?? '') === pinKey)
+        if (activeIndex === -1) {
+          continue
+        }
+
+        if (endpoint === '') {
+          activeFeatures.splice(activeIndex, 1)
+          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
+          continue
+        }
+
+        try {
+          const floorplanUrl = await fetchFloorplanUrl(endpoint, requestAbortController.signal)
+          if (generation !== realestateLoadGeneration || requestAbortController.signal.aborted) {
+            return
+          }
+
+          const resolvedIndex = activeFeatures.findIndex(candidate => String(candidate.properties.realestatePinKey ?? '') === pinKey)
+          if (resolvedIndex === -1) {
+            continue
+          }
+
+          if (floorplanUrl == null) {
+            activeFeatures.splice(resolvedIndex, 1)
+          } else {
+            activeFeatures[resolvedIndex] = {
+              ...activeFeatures[resolvedIndex],
+              properties: {
+                ...activeFeatures[resolvedIndex].properties,
+                pinState: REAL_ESTATE_PIN_STATE_READY,
+                floorplanUrl
+              }
+            }
+          }
+
+          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
+        } catch (error) {
+          if (requestAbortController.signal.aborted) {
+            return
+          }
+
+          console.error('Failed to preload floorplan URL', error)
+          activeFeatures.splice(activeIndex, 1)
+          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
+        }
+      }
+
+      if (generation === realestateLoadGeneration) {
+        floorplanAbortController = null
+      }
+    }
+
+    const installRealestatePinsLayers = () => {
+      if (map.getSource(REAL_ESTATE_SOURCE_ID) == null) {
+        map.addSource(REAL_ESTATE_SOURCE_ID, {
+          type: 'geojson',
+          data: EMPTY_FEATURE_COLLECTION as any,
+          cluster: true,
+          clusterRadius: 50,
+          clusterMaxZoom: 14
+        })
+      }
+
+      if (!map.hasImage(REAL_ESTATE_LOADING_IMAGE_ID)) {
+        map.addImage(REAL_ESTATE_LOADING_IMAGE_ID, createLoadingSpinnerImage(), { pixelRatio: 2 })
+      }
+
+      if (map.getLayer(REAL_ESTATE_CLUSTER_LAYER_ID) == null) {
+        map.addLayer({
+          id: REAL_ESTATE_CLUSTER_LAYER_ID,
+          type: 'circle',
+          source: REAL_ESTATE_SOURCE_ID,
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': '#0f766e',
+            'circle-radius': [
+              'step',
+              ['get', 'point_count'],
+              16,
+              25,
+              20,
+              100,
+              26
+            ],
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#f8fafc'
+          }
+        })
+      }
+
+      if (map.getLayer(REAL_ESTATE_CLUSTER_COUNT_LAYER_ID) == null) {
+        map.addLayer({
+          id: REAL_ESTATE_CLUSTER_COUNT_LAYER_ID,
+          type: 'symbol',
+          source: REAL_ESTATE_SOURCE_ID,
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': ['get', 'point_count_abbreviated'],
+            'text-size': 12,
+            'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold']
+          },
+          paint: {
+            'text-color': '#f8fafc'
+          }
+        })
+      }
+
+      if (map.getLayer(REAL_ESTATE_LOADING_LAYER_ID) == null) {
+        map.addLayer({
+          id: REAL_ESTATE_LOADING_LAYER_ID,
+          type: 'symbol',
+          source: REAL_ESTATE_SOURCE_ID,
+          filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'pinState'], REAL_ESTATE_PIN_STATE_LOADING]],
+          layout: {
+            'icon-image': REAL_ESTATE_LOADING_IMAGE_ID,
+            'icon-size': 0.8,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+          }
+        })
+      }
+
+      if (map.getLayer(REAL_ESTATE_POINT_LAYER_ID) == null) {
+        map.addLayer({
+          id: REAL_ESTATE_POINT_LAYER_ID,
+          type: 'circle',
+          source: REAL_ESTATE_SOURCE_ID,
+          filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'pinState'], REAL_ESTATE_PIN_STATE_READY]],
+          paint: {
+            'circle-color': '#ea580c',
+            'circle-radius': 7,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#fff7ed'
+          }
+        })
+      }
+    }
+
+    const fetchRealestatePins = async () => {
+      if (!map.isStyleLoaded()) {
+        return
+      }
+
+      installRealestatePinsLayers()
+
+      const zoom = Math.ceil(map.getZoom() + LEAFLET_ZOOM_OFFSET)
+      if (zoom < MIN_REAL_ESTATE_ZOOM) {
+        cancelRealestateLoading()
+        setRealestatePinsData(EMPTY_FEATURE_COLLECTION)
+        return
+      }
+
+      cancelRealestateLoading()
+      const requestGeneration = realestateLoadGeneration
+      const requestAbortController = new AbortController()
+      pinsAbortController = requestAbortController
+
+      const bounds = map.getBounds()
+      if (bounds == null) {
+        setRealestatePinsData(EMPTY_FEATURE_COLLECTION)
+        return
+      }
+
+      const west = bounds.getWest()
+      const south = bounds.getSouth()
+      const east = bounds.getEast()
+      const north = bounds.getNorth()
+      if (![west, south, east, north].every(Number.isFinite)) {
+        setRealestatePinsData(EMPTY_FEATURE_COLLECTION)
+        return
+      }
+
+      const bbox = `${west},${south},${east},${north}`
+      const query = new URLSearchParams({
+        service: 'WFS',
+        request: 'GetFeature',
+        version: '2.0.0',
+        typeNames: REAL_ESTATE_FEATURESET,
+        outputFormat: 'GEOJSON',
+        srsName: 'EPSG:4326',
+        bbox,
+        zoom: String(zoom),
+        count: String(MAX_REAL_ESTATE_FEATURES)
+      })
+
+      try {
+        const response = await fetch(`${wfsPath}?${query.toString()}`, {
+          signal: requestAbortController.signal
+        })
+
+        if (!response.ok) {
+          setRealestatePinsData(EMPTY_FEATURE_COLLECTION)
+          return
+        }
+
+        const featureCollection = normaliseRealestatePins(await response.json())
+        if (requestGeneration !== realestateLoadGeneration || requestAbortController.signal.aborted) {
+          return
+        }
+
+        setRealestatePinsData(cloneFeatureCollection(featureCollection.features))
+        void resolveRealestateFloorplans(featureCollection, requestGeneration)
+      } catch (error) {
+        if (requestAbortController.signal.aborted) {
+          return
+        }
+
+        console.error('Failed to load realestate pins', error)
+        setRealestatePinsData(EMPTY_FEATURE_COLLECTION)
+      }
+    }
+
+    const showPopupContent = (lngLat: mapboxgl.LngLat, content: HTMLElement) => {
+      popupRef.current?.remove()
+      popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: '360px' })
+        .setLngLat(lngLat)
+        .setDOMContent(content)
+        .addTo(map)
+    }
+
+    const buildPopupMessage = (message: string) => {
+      const root = document.createElement('div')
+      root.style.maxWidth = '320px'
+      root.style.fontSize = '13px'
+      root.textContent = message
+      return root
+    }
+
+    const showFloorplanForFeature = async (feature: mapboxgl.MapboxGeoJSONFeature, lngLat: mapboxgl.LngLat) => {
+      const endpoint = typeof feature.properties?.floorplanUrlEndpoint === 'string'
+        ? feature.properties.floorplanUrlEndpoint
+        : ''
+
+      if (endpoint === '') {
+        showPopupContent(lngLat, buildPopupMessage('No floorplan endpoint is available for this pin.'))
+        return
+      }
+
+      const preloadedFloorplanUrl = typeof feature.properties?.floorplanUrl === 'string'
+        ? feature.properties.floorplanUrl.trim()
+        : ''
+
+      if (preloadedFloorplanUrl !== '') {
+        renderFloorplanPopup(lngLat, preloadedFloorplanUrl)
+        return
+      }
+
+      showPopupContent(lngLat, buildPopupMessage('Loading floorplan...'))
+
+      try {
+        const floorplanUrl = await fetchFloorplanUrl(endpoint)
+        if (floorplanUrl === '') {
+          showPopupContent(lngLat, buildPopupMessage('No floorplan found for this address.'))
+          return
+        }
+
+        if (floorplanUrl == null) {
+          showPopupContent(lngLat, buildPopupMessage('No floorplan found for this address.'))
+          return
+        }
+
+        renderFloorplanPopup(lngLat, floorplanUrl)
+      } catch (error) {
+        console.error('Failed to fetch floorplan', error)
+        showPopupContent(lngLat, buildPopupMessage('Failed to load the floorplan.'))
+      }
+    }
+
     // apply URL hash on load
 
     map.on("load", () => {
       if (!mapRef.current) return
       applyHashToMap(map)
       injectSelectedLayer(map, selectedLayerRef.current)
-      installRealestateLayer(map)
-      refreshRealestateLayer(map)
-      updateRealestateStyle(map)
+      installRealestatePinsLayers()
+      void fetchRealestatePins()
     })
 
     // update hash when camera stops moving
@@ -114,21 +583,56 @@ export default function MapView(props: {
         )
       }
 
-      refreshRealestateLayer(map)
+      void fetchRealestatePins()
     })
 
-    map.on("move", () => {
-      if (!mapRef.current) return
-      updateRealestateAnchor(map)
+    map.on('click', REAL_ESTATE_CLUSTER_LAYER_ID, event => {
+      const feature = event.features?.[0]
+      const clusterId = feature?.properties?.cluster_id
+      const source = map.getSource(REAL_ESTATE_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
+      if (source == null || typeof clusterId !== 'number') {
+        return
+      }
+
+      source.getClusterExpansionZoom(clusterId, (error, zoom) => {
+        if (error != null || typeof zoom !== 'number') {
+          return
+        }
+
+        map.easeTo({ center: event.lngLat, zoom })
+      })
     })
+
+    map.on('click', REAL_ESTATE_POINT_LAYER_ID, event => {
+      const feature = event.features?.[0]
+      if (feature == null) {
+        return
+      }
+
+      void showFloorplanForFeature(feature, event.lngLat)
+    })
+
+    for (const layerId of [REAL_ESTATE_CLUSTER_LAYER_ID, REAL_ESTATE_POINT_LAYER_ID]) {
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = ''
+      })
+    }
 
     // Enable url map control
-    window.addEventListener("hashchange", () => applyHashToMap(map))
+    const hashChangeHandler = () => applyHashToMap(map)
+    window.addEventListener("hashchange", hashChangeHandler)
 
     // Navigation Controls
     map.addControl(new mapboxgl.NavigationControl())
 
     return () => {
+      cancelRealestateLoading()
+      popupRef.current?.remove()
+      window.removeEventListener('hashchange', hashChangeHandler)
       map.remove()
       mapRef.current = null
     }
@@ -247,183 +751,6 @@ export default function MapView(props: {
     map.on("styledata", handler)
   }
 
-  function getRealestateWfsPath () {
-    return SERVER_TARGET_OVERRIDE
-      ? SERVER_TARGET_OVERRIDE.replace('/viewer', '/realestate/wfs')
-      : location.pathname.replace('/viewer', '/realestate/wfs')
-  }
-
-  function installRealestateLayer (map: mapboxgl.Map) {
-    if (map.getLayer(REAL_ESTATE_LAYER_ID)) return
-
-    if (!map.getSource(REAL_ESTATE_SOURCE_ID)) {
-      map.addSource(REAL_ESTATE_SOURCE_ID, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] }
-      })
-    }
-
-    map.addLayer({
-      id: REAL_ESTATE_LAYER_ID,
-      source: REAL_ESTATE_SOURCE_ID,
-      type: "circle",
-      paint: {
-        "circle-radius": 6,
-        "circle-color": "#e63946",
-        "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 2
-      }
-    })
-
-    map.on("mouseenter", REAL_ESTATE_LAYER_ID, () => {
-      map.getCanvas().style.cursor = "pointer"
-    })
-
-    map.on("mouseleave", REAL_ESTATE_LAYER_ID, () => {
-      map.getCanvas().style.cursor = ""
-    })
-
-    map.on("click", REAL_ESTATE_LAYER_ID, (event) => {
-      const feature = event.features?.[0] as mapboxgl.MapboxGeoJSONFeature | undefined
-      if (!feature) return
-
-      const props = feature.properties as Record<string, any> | undefined
-      const geometryCoords = feature.geometry?.type === "Point"
-        ? (feature.geometry.coordinates as number[])
-        : null
-      const gmlId = props?.gmlID ?? props?.gmlId ?? props?.gmlid
-      const imageDataUrl = props?.imageDataUrl ?? props?.image_data_url
-      const floorplanUrl = props?.floorplanUrl ?? props?.floorplan_url
-      const selectedUrl = imageDataUrl ?? floorplanUrl
-      if (!selectedUrl) return
-      const lng = geometryCoords?.[0]
-      const lat = geometryCoords?.[1]
-
-      setSelectedRealestate({
-        id: gmlId ? String(gmlId) : undefined,
-        url: String(selectedUrl),
-        address: props?.address ? String(props.address) : undefined,
-        lat: typeof lat === "number" ? lat : undefined,
-        lng: typeof lng === "number" ? lng : undefined
-      })
-      setIsRealestateExpanded(false)
-      updateRealestateAnchor(map)
-      updateRealestateStyle(map, gmlId ? String(gmlId) : null)
-    })
-
-    map.on("click", (event) => {
-      const featureHits = map.queryRenderedFeatures(event.point, { layers: [REAL_ESTATE_LAYER_ID] })
-      if (featureHits.length > 0) return
-      setSelectedRealestate(null)
-      setIsRealestateExpanded(false)
-      setRealestateAnchor(null)
-      updateRealestateStyle(map, null)
-    })
-  }
-
-  function updateRealestateAnchor (map: mapboxgl.Map) {
-    if (!selectedRealestate?.lng || !selectedRealestate?.lat) {
-      setRealestateAnchor(null)
-      return
-    }
-
-    const point = map.project([selectedRealestate.lng, selectedRealestate.lat])
-    setRealestateAnchor({ x: point.x, y: point.y })
-  }
-
-  function fitRealestateImage (size: { width: number, height: number }) {
-    const viewport = realestateViewportRef.current
-    const transformApi = realestateTransformRef.current
-    if (!viewport || !transformApi) return
-
-    const viewportWidth = viewport.clientWidth
-    const viewportHeight = viewport.clientHeight
-    if (viewportWidth <= 0 || viewportHeight <= 0) return
-
-    const scale = Math.min(
-      viewportWidth / size.width,
-      viewportHeight / size.height
-    )
-    const offsetX = (viewportWidth - size.width * scale) / 2
-    const offsetY = (viewportHeight - size.height * scale) / 2
-
-    transformApi.setTransform(offsetX, offsetY, scale)
-  }
-
-
-  function updateRealestateStyle (map: mapboxgl.Map, selectedId?: string | null) {
-    if (!map.getLayer(REAL_ESTATE_LAYER_ID)) return
-
-    if (!selectedId) {
-      map.setPaintProperty(REAL_ESTATE_LAYER_ID, "circle-color", "#e63946")
-      map.setPaintProperty(REAL_ESTATE_LAYER_ID, "circle-radius", 6)
-      return
-    }
-
-    map.setPaintProperty(REAL_ESTATE_LAYER_ID, "circle-color", [
-      "case",
-      ["==", ["get", "gmlID"], selectedId],
-      "#ffd166",
-      "#e63946"
-    ])
-    map.setPaintProperty(REAL_ESTATE_LAYER_ID, "circle-radius", [
-      "case",
-      ["==", ["get", "gmlID"], selectedId],
-      9,
-      6
-    ])
-  }
-
-  function refreshRealestateLayer (map: mapboxgl.Map) {
-    const source = map.getSource(REAL_ESTATE_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
-    if (!source) return
-
-    const bounds = map.getBounds()
-    if (!bounds) return
-    const currentZoom = Math.ceil(map.getZoom() + LEAFLET_ZOOM_OFFSET)
-    if (currentZoom < 18) {
-      source.setData({ type: "FeatureCollection", features: [] })
-      return
-    }
-    const bbox = [
-      bounds.getWest(),
-      bounds.getSouth(),
-      bounds.getEast(),
-      bounds.getNorth()
-    ].map(v => v.toFixed(6)).join(",")
-
-    const requestId = ++realestateRequestIdRef.current
-    const url = `${getRealestateWfsPath()}?request=GetFeature&outputformat=GEOJSON&typenames=realestate-floorplans&bbox=${bbox}&srsname=EPSG:4326&count=200`
-
-    fetch(url)
-      .then(async resp => resp.json())
-      .then(data => {
-        if (requestId !== realestateRequestIdRef.current) return
-        if (!data || !Array.isArray(data.features)) {
-          return
-        }
-
-        const filtered = data.features.filter((feature: any) => {
-          const props = feature?.properties ?? {}
-          const floorplanUrl = props.floorplanUrl ?? props.floorplan_url
-          const imageDataUrl = props.imageDataUrl ?? props.image_data_url
-          if (!floorplanUrl && !imageDataUrl) {
-            DEBUG_MODE ? console.error("Real estate pin missing image", feature) : null
-            return false
-          }
-          return true
-        })
-
-        source.setData({
-          ...data,
-          features: filtered
-        })
-      })
-      .catch(err => {
-        DEBUG_MODE ? console.warn("realestate WFS fetch failed", err) : null
-      })
-  }
-
   // When selectedLayer changes → update raster source
   useEffect(() => {
     if (!mapRef.current) return
@@ -432,195 +759,15 @@ export default function MapView(props: {
     updateHashFromMap(mapRef.current)
   }, [props.selectedLayer])
 
-  useEffect(() => {
-    if (!mapRef.current) return
-    updateRealestateStyle(mapRef.current, selectedRealestate?.id ?? null)
-    updateRealestateAnchor(mapRef.current)
-  }, [selectedRealestate])
-
-  useEffect(() => {
-    if (!isRealestateExpanded || !realestateImageSize) return
-    fitRealestateImage(realestateImageSize)
-  }, [isRealestateExpanded, realestateImageSize])
-
-  useEffect(() => {
-    if (!isRealestateExpanded) return
-    const viewport = realestateViewportRef.current
-    if (!viewport || !realestateImageSize) return
-
-    const observer = new ResizeObserver(() => fitRealestateImage(realestateImageSize))
-    observer.observe(viewport)
-    return () => observer.disconnect()
-  }, [isRealestateExpanded, realestateImageSize])
-
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <div
-        ref={containerRef}
-        style={{
-          width: "100%",
-          height: "100%",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      />
-      {selectedRealestate && !isRealestateExpanded && realestateAnchor && (
-        <Card
-          shadow="lg"
-          radius="md"
-          style={{
-            position: "absolute",
-            left: realestateAnchor.x,
-            top: realestateAnchor.y,
-            zIndex: 3,
-            width: 360,
-            maxWidth: "90vw",
-            transform: "translate(-50%, calc(-100% - 14px))"
-          }}
-        >
-          <Box
-            style={{
-              position: "absolute",
-              left: "50%",
-              bottom: -10,
-              width: 0,
-              height: 0,
-              borderLeft: "10px solid transparent",
-              borderRight: "10px solid transparent",
-              borderTop: "10px solid white",
-              transform: "translateX(-50%)"
-            }}
-          />
-          <Group justify="space-between" align="center" style={{ marginBottom: 8 }}>
-            <Text fw={600}>
-              {selectedRealestate.address ?? "Floorplan"}
-            </Text>
-            <ActionIcon
-              variant="subtle"
-              size="lg"
-              aria-label="Expand"
-              onClick={() => setIsRealestateExpanded(true)}
-            >
-              ⤢
-            </ActionIcon>
-          </Group>
-          {selectedRealestate.url.toLowerCase().endsWith(".pdf") ? (
-            <Button
-              component="a"
-              href={selectedRealestate.url}
-              target="_blank"
-              rel="noreferrer"
-              variant="light"
-              fullWidth
-            >
-              Open floorplan PDF
-            </Button>
-          ) : (
-            <img
-              src={selectedRealestate.url}
-              alt="Floorplan"
-              style={{ width: "100%", borderRadius: 8, display: "block" }}
-            />
-          )}
-        </Card>
-      )}
-      <Modal
-        opened={selectedRealestate != null && isRealestateExpanded}
-        onClose={() => setIsRealestateExpanded(false)}
-        centered
-        size="90%"
-        padding={0}
-        withCloseButton={false}
-        overlayProps={{ backgroundOpacity: 0.6, blur: 2 }}
-        styles={{
-          content: { overflow: "hidden" },
-          body: { padding: 0, height: "90vh" }
-        }}
-      >
-        {selectedRealestate && (
-          <Box style={{ display: "flex", flexDirection: "column", height: "90vh" }}>
-            <Group
-              justify="space-between"
-              align="center"
-              style={{ padding: "12px 16px", borderBottom: "1px solid rgba(0,0,0,0.08)" }}
-            >
-              <Text fw={600}>
-                {selectedRealestate.address ?? "Floorplan"}
-              </Text>
-              <ActionIcon
-                variant="subtle"
-                size="lg"
-                aria-label="Close"
-                onClick={() => setIsRealestateExpanded(false)}
-              >
-                ×
-              </ActionIcon>
-            </Group>
-            <Box
-              style={{
-                flex: 1,
-                background: "#111",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-              ref={realestateViewportRef}
-            >
-              {selectedRealestate.url.toLowerCase().endsWith(".pdf") ? (
-                <iframe
-                  src={selectedRealestate.url}
-                  title="Floorplan PDF"
-                  style={{ width: "100%", height: "100%", border: "none" }}
-                />
-              ) : (
-                <TransformWrapper
-                  ref={realestateTransformRef}
-                  minScale={0.5}
-                  maxScale={6}
-                  centerOnInit
-                  centerZoomedOut
-                  wheel={{ step: 0.2 }}
-                >
-                  <TransformComponent
-                    wrapperStyle={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}
-                    contentStyle={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}
-                  >
-                    <img
-                      src={selectedRealestate.url}
-                      alt="Floorplan"
-                      onLoad={(event) => {
-                        const target = event.currentTarget
-                        const nextSize = { width: target.naturalWidth, height: target.naturalHeight }
-                        setRealestateImageSize(nextSize)
-                        fitRealestateImage(nextSize)
-                      }}
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: "100%",
-                        userSelect: "none",
-                        display: "block"
-                      }}
-                      draggable={false}
-                    />
-                  </TransformComponent>
-                </TransformWrapper>
-              )}
-            </Box>
-          </Box>
-        )}
-      </Modal>
-    </div>
+    <div
+      ref={containerRef}
+      style={{
+        width: "100%",
+        height: "100%",
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    />
   )
 }

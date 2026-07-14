@@ -20,7 +20,10 @@ namespace EspGisViewer.Routes.Wfs
         }
 
         private static readonly string[] ExcludedWfsColumns = {
-            "id"
+            "id",
+            "featureset",
+            "domainLink",
+            "reaLink"
         };
 
         private class Column
@@ -113,9 +116,10 @@ namespace EspGisViewer.Routes.Wfs
                 .Select(MapSqlTypesIntoFeatures)
                 .ToList();
 
-            // Inject geometry + viewerUrl
+            // Inject geometry + viewerUrl + floorplanUrlEndpoint
             featureTypes.Insert(0, MapSqlTypesIntoFeatures(new Column { Type = "TEXT", Name = "viewerUrl" }));
             featureTypes.Insert(0, MapSqlTypesIntoFeatures(new Column { Type = "BLOB", Name = "geom" }));
+            featureTypes.Add(MapSqlTypesIntoFeatures(new Column { Type = "TEXT", Name = "floorplanUrlEndpoint" }));
 
             // Define the Target Namespace (tns / LOCATRIX)
             string targetNamespace = "http://www.locatrix.com"; 

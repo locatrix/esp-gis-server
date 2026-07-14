@@ -70,9 +70,14 @@
     <Reference Include="System.Configuration" />
     <Reference Include="System.Web.Services" />
     <Reference Include="System.EnterpriseServices" />
+    <Reference Include="System.Runtime.Caching" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Global.asax" />
+    <Content Include="scripts\fetch-domain-floorplan.mjs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>scripts\fetch-domain-floorplan.mjs</TargetPath>
+    </Content>
     <None Include="static\viewer\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -86,6 +91,8 @@
     <Compile Include="src\Routes\Coverage\CoverageRoute.cs" />
     <Compile Include="src\Routes\Coverage\CoverageController.cs" />
     <Compile Include="src\Routes\IndexRoute.cs" />
+    <Compile Include="src\Routes\Realestate\RealestateFloorplanController.cs" />
+    <Compile Include="src\Routes\Realestate\RealestateFloorplanRoute.cs" />
     <Compile Include="src\Routes\RootRoute.cs" />
     <Compile Include="src\Routes\RouteController.cs" />
     <Compile Include="src\Routes\Viewer\ViewerController.cs" />
