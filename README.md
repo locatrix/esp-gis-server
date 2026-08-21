@@ -75,6 +75,12 @@ This naming convention is followed by Locatrix when pushing new GeoPackages to y
 
 ESP GIS Viewer checks for newer GeoPackages on requests to capabilities URLs, and up to every 5 minutes when accessing tile/feature URLs. The server will always use data from GeoPackages with the newest timestamp in their filename.
 
+### GeoPackage WFS Transformations
+
+The [`feature_output_formats` GeoPackage extension](docs/geopackage-feature-output-formats.md) defines format-specific transformations without coupling them to a particular column or stored data type. Each row identifies a feature table and column, its stored format, an output format, a formatter, and optional JSON parameters.
+
+For example, a JSON value can use the `native` formatter for GeoJSON and the `delimited` formatter for XML. The latter accepts a `separator` option for its human-readable representation.
+
 ## Configuration
 
 Configuration is managed through the `web.config` file in the `EspGisViewer` project.

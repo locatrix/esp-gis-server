@@ -11,6 +11,7 @@ using EspGisViewer.Data;
 using EspGisViewer.Routes.Realestate;
 using EspGisViewer.Util;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using SQLite;
 using Formatting = Newtonsoft.Json.Formatting;
@@ -54,6 +55,9 @@ namespace EspGisViewer.Routes.Wfs
 
         [SQLite.Column("buildingCode")]
         public string BuildingCode { get; set; }
+
+        [SQLite.Column("floorCode")]
+        public string FloorCode { get; set; }
 
         [SQLite.Column("squareMeters")]
         public double? SquareMeters { get; set; }
@@ -110,10 +114,26 @@ namespace EspGisViewer.Routes.Wfs
         public int TableCount { get; set; }
     }
 
+    public class FeatureOutputFormatRow
+    {
+        [SQLite.Column("column_name")]
+        public string ColumnName { get; set; }
+
+        [SQLite.Column("source_format")]
+        public string SourceFormat { get; set; }
+
+        [SQLite.Column("formatter")]
+        public string Formatter { get; set; }
+
+        [SQLite.Column("options")]
+        public string Options { get; set; }
+    }
+
     public class WfsGetFeatureController
     {
         private const int MinRealestateZoom = 20;
         private const string AllFeaturesTableName = "all_features";
+        private const string FeatureOutputFormatsTableName = "feature_output_formats";
         private readonly DataSource _dataSource;
         private readonly string _allowedType;
         private readonly object _columnNamesLock = new object();
@@ -191,38 +211,39 @@ namespace EspGisViewer.Routes.Wfs
             }
 
             var columnNames = await GetColumnNames(querySource.TableName);
-            var queryParams = new Dictionary<string, string>();
+            var responseOutputFormat = string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase)
+                ? "geojson"
+                : "xml";
+            var featureOutputFormats = await LoadFeatureOutputFormats(responseOutputFormat);
+            var queryBbox = GetQueryBbox(bbox, srsName, querySource.UseIndexedMercatorBbox);
+            var bboxPredicate = BuildBboxPredicate(queryBbox, srsName, columnNames, querySource.UseIndexedMercatorBbox);
+            var queryArgs = new List<object>();
 
             if (querySource.FeaturesetFilter != null)
             {
-                queryParams["$featureset"] = querySource.FeaturesetFilter;
-            }
-
-            var queryBbox = GetQueryBbox(bbox, srsName, querySource.UseIndexedMercatorBbox);
-
-            if (queryBbox != null)
-            {
-                for (var i = 0; i < queryBbox.Length; i++)
-                {
-                    queryParams[$"$bbox{i}"] = queryBbox[i].ToString(CultureInfo.InvariantCulture);
-                }
+                queryArgs.Add(querySource.FeaturesetFilter);
             }
 
             if (featureId != null)
             {
-                queryParams["$featureId"] = featureId.Value.ToString(CultureInfo.InvariantCulture);
+                queryArgs.Add(featureId.Value);
             }
 
+            if (!string.IsNullOrEmpty(bboxPredicate))
+            {
+                queryArgs.AddRange(queryBbox.Cast<object>());
+            }
+
+            var countQueryArgs = queryArgs.ToArray();
             if (count != null)
             {
-                queryParams["$count"] = count.Value.ToString(CultureInfo.InvariantCulture);
+                queryArgs.Add(count.Value);
             }
 
-            var bboxPredicate = BuildBboxPredicate(queryBbox, srsName, columnNames, querySource.UseIndexedMercatorBbox);
-            var idPredicate = featureId != null ? "AND id = $featureId" : string.Empty;
-            var limitClause = count != null ? "LIMIT $count" : string.Empty;
+            var idPredicate = featureId != null ? "AND id = ?" : string.Empty;
+            var limitClause = count != null ? "LIMIT ?" : string.Empty;
             var quotedTable = QuoteIdentifier(querySource.TableName);
-            var featuresetPredicate = querySource.FeaturesetFilter != null ? "AND featureset = $featureset" : string.Empty;
+            var featuresetPredicate = querySource.FeaturesetFilter != null ? "AND featureset = ?" : string.Empty;
 
             var sql = $@"
                 SELECT *
@@ -234,15 +255,11 @@ namespace EspGisViewer.Routes.Wfs
                 {limitClause}
             ";
 
-            var features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, queryParams);
+            var features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, queryArgs.ToArray());
             var numberMatched = features.Count;
 
             if (count != null && !string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
             {
-                var remainingQueryParams = queryParams
-                    .Where(kvp => kvp.Key != "$count")
-                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
                 var countSql = $@"
                     SELECT COUNT(*) AS totalCount
                     FROM {quotedTable}
@@ -252,7 +269,7 @@ namespace EspGisViewer.Routes.Wfs
                     {bboxPredicate}
                 ";
 
-                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(countSql, remainingQueryParams);
+                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(countSql, countQueryArgs);
                 if (totalCountResult.Count > 0)
                 {
                     numberMatched = totalCountResult[0].TotalCount;
@@ -261,11 +278,11 @@ namespace EspGisViewer.Routes.Wfs
 
             if (string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
             {
-                WriteGeoJson(context, parameters, srsName, columnNames, features);
+                WriteGeoJson(context, parameters, srsName, columnNames, featureOutputFormats, features);
                 return;
             }
 
-            WriteXml(context, parameters, featureName, srsName, columnNames, features, numberMatched);
+            WriteXml(context, parameters, featureName, srsName, columnNames, featureOutputFormats, features, numberMatched);
         }
 
         private async Task<bool> TableExists(string tableName)
@@ -296,6 +313,23 @@ namespace EspGisViewer.Routes.Wfs
             return new HashSet<string>(columnRows.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
         }
 
+        private async Task<Dictionary<string, FeatureOutputFormatRow>> LoadFeatureOutputFormats(string outputFormat)
+        {
+            if (!await TableExists(FeatureOutputFormatsTableName))
+            {
+                return new Dictionary<string, FeatureOutputFormatRow>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var rows = await _dataSource.TilesAndFeatures.QueryAsync<FeatureOutputFormatRow>(/* sql */ @"
+                SELECT column_name, source_format, formatter, options
+                FROM feature_output_formats
+                                WHERE table_name = ?
+                                    AND output_format = ?
+                        ", _allowedType, outputFormat);
+
+            return rows.ToDictionary(r => r.ColumnName, StringComparer.OrdinalIgnoreCase);
+        }
+
         private static string BuildBboxPredicate(double[] bbox, string srsName, HashSet<string> columnNames, bool preferMercator)
         {
             if (bbox == null)
@@ -309,12 +343,12 @@ namespace EspGisViewer.Routes.Wfs
 
             if (useWebMercator && columnNames.Contains("x") && columnNames.Contains("y"))
             {
-                return "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3";
+                return "AND x > ? AND y > ? AND x < ? AND y < ?";
             }
 
             if (columnNames.Contains("latitude") && columnNames.Contains("longitude"))
             {
-                return "AND longitude > $bbox0 AND latitude > $bbox1 AND longitude < $bbox2 AND latitude < $bbox3";
+                return "AND longitude > ? AND latitude > ? AND longitude < ? AND latitude < ?";
             }
 
             return string.Empty;
@@ -382,13 +416,13 @@ namespace EspGisViewer.Routes.Wfs
                 Math.Abs(bbox[3]) > 90);
         }
 
-        private void WriteGeoJson(HttpContext context, Dictionary<string, string> parameters, string srsName, HashSet<string> columnNames, List<FeatureRow> features)
+        private void WriteGeoJson(HttpContext context, Dictionary<string, string> parameters, string srsName, HashSet<string> columnNames, Dictionary<string, FeatureOutputFormatRow> featureOutputFormats, List<FeatureRow> features)
         {
             var serverRoot = ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true);
             var obj = new Dictionary<string, object>
             {
                 ["type"] = "FeatureCollection",
-                ["features"] = features.Select(feature => BuildGeoJsonFeature(serverRoot, srsName, columnNames, feature)).ToList()
+                ["features"] = features.Select(feature => BuildGeoJsonFeature(serverRoot, srsName, columnNames, featureOutputFormats, feature)).ToList()
             };
 
             context.Response.ContentType = "application/json";
@@ -406,7 +440,7 @@ namespace EspGisViewer.Routes.Wfs
             context.Response.Write(JsonConvert.SerializeObject(obj, settings));
         }
 
-        private Dictionary<string, object> BuildGeoJsonFeature(string serverRoot, string srsName, HashSet<string> columnNames, FeatureRow feature)
+        private Dictionary<string, object> BuildGeoJsonFeature(string serverRoot, string srsName, HashSet<string> columnNames, Dictionary<string, FeatureOutputFormatRow> featureOutputFormats, FeatureRow feature)
         {
             var properties = new Dictionary<string, object>
             {
@@ -426,7 +460,13 @@ namespace EspGisViewer.Routes.Wfs
             foreach (var kvp in GetFeatureProperties(feature))
             {
                 var camelCaseKey = char.ToLowerInvariant(kvp.Key[0]) + kvp.Key.Substring(1);
-                properties[camelCaseKey] = kvp.Value;
+                object value = kvp.Value;
+                if (featureOutputFormats.TryGetValue(kvp.Key, out var format)
+                    && !TryFormatFeatureValue(value, format, out value))
+                {
+                    continue;
+                }
+                properties[camelCaseKey] = value;
             }
 
             double[] coordinates = null;
@@ -452,7 +492,7 @@ namespace EspGisViewer.Routes.Wfs
             };
         }
 
-        private void WriteXml(HttpContext context, Dictionary<string, string> parameters, string featureName, string srsName, HashSet<string> columnNames, List<FeatureRow> features, int numberMatched)
+        private void WriteXml(HttpContext context, Dictionary<string, string> parameters, string featureName, string srsName, HashSet<string> columnNames, Dictionary<string, FeatureOutputFormatRow> featureOutputFormats, List<FeatureRow> features, int numberMatched)
         {
             var serverRoot = ServerHost.GetServerUrl(context.Request, parameters.GetValue("accessToken"), true);
             var plansXml = new StringBuilder();
@@ -487,7 +527,14 @@ namespace EspGisViewer.Routes.Wfs
 
                 foreach (var kvp in GetFeatureProperties(feature))
                 {
-                    propertiesXml.Append($@"      <{kvp.Key}>{SafeXml(kvp.Value)}</{kvp.Key}>");
+                    object value = kvp.Value;
+                    if (featureOutputFormats.TryGetValue(kvp.Key, out var format)
+                        && !TryFormatFeatureValue(value, format, out value))
+                    {
+                        continue;
+                    }
+
+                    propertiesXml.Append($@"      <{kvp.Key}>{SafeXml(value)}</{kvp.Key}>");
                     propertiesXml.Append("\r\n");
                 }
 
@@ -544,7 +591,9 @@ namespace EspGisViewer.Routes.Wfs
         {
             foreach (var property in typeof(FeatureRow).GetProperties())
             {
-                if (property.Name == nameof(FeatureRow.Id))
+                var columnName = GetColumnName(property);
+                if (property.Name == nameof(FeatureRow.Id)
+                    || IsExcludedCodeColumn(columnName))
                 {
                     continue;
                 }
@@ -555,8 +604,73 @@ namespace EspGisViewer.Routes.Wfs
                     continue;
                 }
 
-                yield return new KeyValuePair<string, object>(GetColumnName(property), value);
+                yield return new KeyValuePair<string, object>(columnName, value);
             }
+        }
+
+        private static bool TryFormatFeatureValue(object storedValue, FeatureOutputFormatRow format, out object formattedValue)
+        {
+            formattedValue = storedValue;
+
+            try
+            {
+                if (string.Equals(format.SourceFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var json = storedValue as string;
+                    if (string.IsNullOrWhiteSpace(json))
+                    {
+                        return false;
+                    }
+
+                    formattedValue = JToken.Parse(json);
+                }
+                else if (!string.Equals(format.SourceFormat, "text", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (string.Equals(format.Formatter, "native", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (string.Equals(format.Formatter, "delimited", StringComparison.OrdinalIgnoreCase)
+                    && formattedValue is JArray values)
+                {
+                    var separator = ", ";
+                    if (!string.IsNullOrWhiteSpace(format.Options))
+                    {
+                        separator = JObject.Parse(format.Options).Value<string>("separator") ?? separator;
+                    }
+
+                    formattedValue = string.Join(separator, values.Select(FormatJsonValue));
+                    return true;
+                }
+            }
+            catch (JsonException)
+            {
+            }
+
+            return false;
+        }
+
+        private static string FormatJsonValue(JToken value)
+        {
+            if (value.Type == JTokenType.Null)
+            {
+                return string.Empty;
+            }
+
+            return value.Type == JTokenType.String
+                ? value.Value<string>()
+                : value.ToString(Formatting.None);
+        }
+
+        private static bool IsExcludedCodeColumn(string columnName)
+        {
+            return columnName.EndsWith("Code", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(columnName, "buildingCode", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(columnName, "floorCode", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetColumnName(PropertyInfo property)

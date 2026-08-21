@@ -23,7 +23,8 @@ namespace EspGisViewer.Routes.Wfs
             "id",
             "featureset",
             "domainLink",
-            "reaLink"
+            "reaLink",
+            "floorNamesJson"
         };
 
         private class Column
@@ -36,7 +37,10 @@ namespace EspGisViewer.Routes.Wfs
 
             public bool IsExcluded()
             {
-                return ExcludedWfsColumns.Contains(Name);
+                return ExcludedWfsColumns.Contains(Name)
+                    || Name.EndsWith("Code", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(Name, "buildingCode", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(Name, "floorCode", StringComparison.OrdinalIgnoreCase);
             }
         }
 

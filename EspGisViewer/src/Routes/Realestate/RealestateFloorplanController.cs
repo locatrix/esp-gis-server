@@ -80,13 +80,9 @@ namespace EspGisViewer.Routes.Realestate
             var records = await _dataSource.TilesAndFeatures.QueryAsync<FloorplanLookup>(/* sql */ @"
                 SELECT domainLink
                 FROM all_features
-                WHERE featureset = $featureset AND id = $featureId
+                WHERE featureset = ? AND id = ?
                 LIMIT 1
-            ", new Dictionary<string, string>
-            {
-                ["$featureset"] = RealestatePinsFeatureset,
-                ["$featureId"] = featureId.ToString()
-            });
+            ", RealestatePinsFeatureset, featureId);
 
             var domainLink = records.Count > 0 ? records[0].DomainLink : null;
             if (string.IsNullOrWhiteSpace(domainLink))
