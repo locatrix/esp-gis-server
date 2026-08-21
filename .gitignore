@@ -102,3 +102,4 @@ StyleCop.Cache
 *.log
 *.log.*
 /EspGisViewer/static/viewer
+/EspGisViewer/Browser

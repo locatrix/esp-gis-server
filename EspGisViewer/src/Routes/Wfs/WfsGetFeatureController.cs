@@ -191,38 +191,39 @@ namespace EspGisViewer.Routes.Wfs
             }
 
             var columnNames = await GetColumnNames(querySource.TableName);
-            var queryParams = new Dictionary<string, string>();
+            var queryArgs = new List<object>();
 
             if (querySource.FeaturesetFilter != null)
             {
-                queryParams["$featureset"] = querySource.FeaturesetFilter;
-            }
-
-            var queryBbox = GetQueryBbox(bbox, srsName, querySource.UseIndexedMercatorBbox);
-
-            if (queryBbox != null)
-            {
-                for (var i = 0; i < queryBbox.Length; i++)
-                {
-                    queryParams[$"$bbox{i}"] = queryBbox[i].ToString(CultureInfo.InvariantCulture);
-                }
+                queryArgs.Add(querySource.FeaturesetFilter);
             }
 
             if (featureId != null)
             {
-                queryParams["$featureId"] = featureId.Value.ToString(CultureInfo.InvariantCulture);
+                queryArgs.Add(featureId.Value);
+            }
+
+            var queryBbox = GetQueryBbox(bbox, srsName, querySource.UseIndexedMercatorBbox);
+
+            var bboxPredicate = BuildBboxPredicate(queryBbox, srsName, columnNames, querySource.UseIndexedMercatorBbox);
+
+            if (!string.IsNullOrEmpty(bboxPredicate))
+            {
+                for (var i = 0; i < queryBbox.Length; i++)
+                {
+                    queryArgs.Add(queryBbox[i]);
+                }
             }
 
             if (count != null)
             {
-                queryParams["$count"] = count.Value.ToString(CultureInfo.InvariantCulture);
+                queryArgs.Add(count.Value);
             }
 
-            var bboxPredicate = BuildBboxPredicate(queryBbox, srsName, columnNames, querySource.UseIndexedMercatorBbox);
-            var idPredicate = featureId != null ? "AND id = $featureId" : string.Empty;
-            var limitClause = count != null ? "LIMIT $count" : string.Empty;
+            var idPredicate = featureId != null ? "AND id = ?" : string.Empty;
+            var limitClause = count != null ? "LIMIT ?" : string.Empty;
             var quotedTable = QuoteIdentifier(querySource.TableName);
-            var featuresetPredicate = querySource.FeaturesetFilter != null ? "AND featureset = $featureset" : string.Empty;
+            var featuresetPredicate = querySource.FeaturesetFilter != null ? "AND featureset = ?" : string.Empty;
 
             var sql = $@"
                 SELECT *
@@ -234,14 +235,12 @@ namespace EspGisViewer.Routes.Wfs
                 {limitClause}
             ";
 
-            var features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, queryParams);
+            var features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, queryArgs.ToArray());
             var numberMatched = features.Count;
 
             if (count != null && !string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
             {
-                var remainingQueryParams = queryParams
-                    .Where(kvp => kvp.Key != "$count")
-                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                var remainingQueryArgs = queryArgs.Take(queryArgs.Count - 1).ToArray();
 
                 var countSql = $@"
                     SELECT COUNT(*) AS totalCount
@@ -252,7 +251,7 @@ namespace EspGisViewer.Routes.Wfs
                     {bboxPredicate}
                 ";
 
-                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(countSql, remainingQueryParams);
+                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(countSql, remainingQueryArgs);
                 if (totalCountResult.Count > 0)
                 {
                     numberMatched = totalCountResult[0].TotalCount;
@@ -309,12 +308,12 @@ namespace EspGisViewer.Routes.Wfs
 
             if (useWebMercator && columnNames.Contains("x") && columnNames.Contains("y"))
             {
-                return "AND x > $bbox0 AND y > $bbox1 AND x < $bbox2 AND y < $bbox3";
+                return "AND x > ? AND y > ? AND x < ? AND y < ?";
             }
 
             if (columnNames.Contains("latitude") && columnNames.Contains("longitude"))
             {
-                return "AND longitude > $bbox0 AND latitude > $bbox1 AND longitude < $bbox2 AND latitude < $bbox3";
+                return "AND longitude > ? AND latitude > ? AND longitude < ? AND latitude < ?";
             }
 
             return string.Empty;

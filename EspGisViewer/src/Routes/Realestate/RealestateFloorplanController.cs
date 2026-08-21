@@ -2,15 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
 using System.Runtime.Caching;
-using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Util;
 using Newtonsoft.Json.Linq;
+using PuppeteerSharp;
 
 namespace EspGisViewer.Routes.Realestate
 {
@@ -18,13 +18,24 @@ namespace EspGisViewer.Routes.Realestate
     {
         public const string RealestatePinsFeatureset = "realestate_pins";
 
-        private const int RequestTimeoutMs = 20000;
+        private const int RequestTimeoutMs = 25000;
+        private const int PageNavigationTimeoutMs = 30000;
+        private const int NextDataTimeoutMs = 30000;
+        private const int DomainRequestIntervalMs = 1000;
+        private static readonly TimeSpan TransientErrorCacheDuration = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan FloorplanHitCacheDuration = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan FloorplanMissCacheDuration = TimeSpan.FromMinutes(10);
-        private const string FloorplanFetcherScriptRelativePath = @"scripts\fetch-domain-floorplan.mjs";
         private const string FloorplanCacheKeyPrefix = "realestate-floorplan:";
         private const string DomainLinkColumnName = "domainLink";
+        private const string PackagedBrowserDirectoryName = "Browser";
+        private const string PackagedBrowserApplicationDirectoryName = "Application";
+        private const string ChromeExecutableName = "chrome.exe";
+        private const string AccessDeniedPageTitle = "Access Denied";
         private static readonly ObjectCache FloorplanCache = MemoryCache.Default;
+        private static readonly SemaphoreSlim DomainRequestLock = new SemaphoreSlim(1, 1);
+        private static readonly SemaphoreSlim BrowserLaunchLock = new SemaphoreSlim(1, 1);
+        private static DateTime _lastDomainRequestUtc = DateTime.MinValue;
+        private static IBrowser _browser;
 
         private static readonly Regex NextDataRegex = new Regex(
             @"<script id=""__NEXT_DATA__""[^>]*>([\s\S]*?)</script>",
@@ -80,13 +91,9 @@ namespace EspGisViewer.Routes.Realestate
             var records = await _dataSource.TilesAndFeatures.QueryAsync<FloorplanLookup>(/* sql */ @"
                 SELECT domainLink
                 FROM all_features
-                WHERE featureset = $featureset AND id = $featureId
+                WHERE featureset = ? AND id = ?
                 LIMIT 1
-            ", new Dictionary<string, string>
-            {
-                ["$featureset"] = RealestatePinsFeatureset,
-                ["$featureId"] = featureId.ToString()
-            });
+            ", RealestatePinsFeatureset, featureId);
 
             var domainLink = records.Count > 0 ? records[0].DomainLink : null;
             if (string.IsNullOrWhiteSpace(domainLink))
@@ -108,13 +115,6 @@ namespace EspGisViewer.Routes.Realestate
                     context.Response.Write(floorplanResult.Error);
                     return;
                 }
-            }
-            catch (WebException ex)
-            {
-                context.Response.StatusCode = 502;
-                context.Response.ContentType = "text/plain";
-                context.Response.Write(ex.Message);
-                return;
             }
             catch (Exception ex)
             {
@@ -146,22 +146,54 @@ namespace EspGisViewer.Routes.Realestate
                 return cachedValue;
             }
 
-            var floorplanResult = await FetchDomainFloorplans(domainUrl);
-            if (!string.IsNullOrWhiteSpace(floorplanResult.Error) && floorplanResult.StatusCode != 404)
+            await DomainRequestLock.WaitAsync();
+            try
             {
+                // Another request may have populated this URL while we waited.
+                cachedValue = FloorplanCache.Get(cacheKey) as FloorplanResult;
+                if (cachedValue != null)
+                {
+                    return cachedValue;
+                }
+
+                await WaitForDomainRequestSlot();
+                var floorplanResult = await FetchDomainFloorplans(domainUrl);
+                if (!string.IsNullOrWhiteSpace(floorplanResult.Error) && floorplanResult.StatusCode != 404)
+                {
+                    FloorplanCache.Set(cacheKey, floorplanResult, new CacheItemPolicy
+                    {
+                        AbsoluteExpiration = DateTimeOffset.UtcNow.Add(TransientErrorCacheDuration)
+                    });
+                    return floorplanResult;
+                }
+
+                var cacheDuration = floorplanResult.Urls.Count > 0
+                    ? FloorplanHitCacheDuration
+                    : FloorplanMissCacheDuration;
+
+                FloorplanCache.Set(cacheKey, floorplanResult, new CacheItemPolicy
+                {
+                    AbsoluteExpiration = DateTimeOffset.UtcNow.Add(cacheDuration)
+                });
+
                 return floorplanResult;
             }
-
-            var cacheDuration = floorplanResult.Urls.Count > 0
-                ? FloorplanHitCacheDuration
-                : FloorplanMissCacheDuration;
-
-            FloorplanCache.Set(cacheKey, floorplanResult, new CacheItemPolicy
+            finally
             {
-                AbsoluteExpiration = DateTimeOffset.UtcNow.Add(cacheDuration)
-            });
+                DomainRequestLock.Release();
+            }
+        }
 
-            return floorplanResult;
+        private static async Task WaitForDomainRequestSlot()
+        {
+            var now = DateTime.UtcNow;
+            var nextAllowed = _lastDomainRequestUtc.AddMilliseconds(DomainRequestIntervalMs);
+            if (nextAllowed > now)
+            {
+                await Task.Delay(nextAllowed - now);
+            }
+
+            _lastDomainRequestUtc = DateTime.UtcNow;
         }
 
         private static string BuildFloorplanCacheKey(string domainUrl)
@@ -200,74 +232,129 @@ namespace EspGisViewer.Routes.Realestate
 
         private static async Task<FloorplanResult> FetchDomainFloorplans(string domainUrl)
         {
-            var appBasePath = AppDomain.CurrentDomain.BaseDirectory;
-            var scriptPath = Path.Combine(appBasePath, FloorplanFetcherScriptRelativePath);
-            if (!File.Exists(scriptPath))
+            Console.WriteLine($"[floorplan] requesting {domainUrl}");
+
+            try
             {
-                throw new FileNotFoundException($"Floorplan fetcher script not found: {scriptPath}");
-            }
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = "node",
-                Arguments = $"\"{scriptPath}\" \"{domainUrl}\"",
-                WorkingDirectory = appBasePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-            };
-
-            using (var process = Process.Start(psi))
-            {
-                if (process == null)
-                {
-                    throw new InvalidOperationException("Failed to start the floorplan fetcher process.");
-                }
-
-                var stdoutTask = process.StandardOutput.ReadToEndAsync();
-                var stderrTask = process.StandardError.ReadToEndAsync();
-                var didExit = await Task.Run(() => process.WaitForExit(RequestTimeoutMs));
-
-                if (!didExit)
-                {
-                    try
-                    {
-                        process.Kill();
-                    }
-                    catch
-                    {
-                    }
-
-                    throw new TimeoutException("Timed out while fetching Domain floorplans.");
-                }
-
-                var stdout = await stdoutTask;
-                var stderr = await stderrTask;
-
-                if (process.ExitCode != 0)
-                {
-                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(stderr)
-                        ? $"Floorplan fetcher exited with code {process.ExitCode}."
-                        : stderr.Trim());
-                }
-
-                var payload = stdout.Trim();
-                if (payload.Length == 0)
-                {
-                    throw new InvalidOperationException("Floorplan fetcher returned an empty response.");
-                }
-
-                var parsed = JObject.Parse(payload);
+                var html = await FetchDomainHtml(domainUrl);
+                var nextData = ParseNextDataPayload(html);
                 return new FloorplanResult
                 {
-                    Error = parsed.Value<string>("error"),
-                    StatusCode = parsed.Value<int?>("statusCode"),
-                    Urls = parsed["urls"]?.ToObject<List<string>>() ?? new List<string>()
+                    StatusCode = 200,
+                    Urls = ExtractFloorplanUrls(nextData)
                 };
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[floorplan] failed: {ex.Message}");
+                return UpstreamFailure("Domain did not return floorplan data.");
+            }
+        }
+
+        private static async Task<string> FetchDomainHtml(string domainUrl)
+        {
+            var browser = await GetBrowser();
+            var browserContext = await browser.CreateBrowserContextAsync(new BrowserContextOptions());
+            try
+            {
+                using (var page = await browserContext.NewPageAsync())
+                {
+                    await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
+                    {
+                        ["Accept-Language"] = "en-AU,en;q=0.9"
+                    });
+                    await page.GoToAsync(domainUrl, new NavigationOptions
+                    {
+                        WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded },
+                        Timeout = PageNavigationTimeoutMs
+                    });
+
+                    if (string.Equals(await page.GetTitleAsync(), AccessDeniedPageTitle, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidOperationException("Domain denied the floorplan lookup request.");
+                    }
+
+                    await page.WaitForSelectorAsync("#__NEXT_DATA__", new WaitForSelectorOptions
+                    {
+                        Timeout = NextDataTimeoutMs
+                    });
+
+                    return await page.EvaluateExpressionAsync<string>("document.documentElement.outerHTML");
+                }
+            }
+            finally
+            {
+                await browserContext.CloseAsync();
+            }
+        }
+
+        private static FloorplanResult UpstreamFailure(string error)
+        {
+            return new FloorplanResult
+            {
+                Error = error,
+                StatusCode = 502
+            };
+        }
+
+        private static async Task<IBrowser> GetBrowser()
+        {
+            if (_browser != null && _browser.IsConnected)
+            {
+                return _browser;
+            }
+
+            await BrowserLaunchLock.WaitAsync();
+            try
+            {
+                if (_browser != null && _browser.IsConnected)
+                {
+                    return _browser;
+                }
+
+                var executablePath = FindPackagedBrowserExecutable();
+                var userDataDirectory = Path.Combine(
+                    Path.GetTempPath(),
+                    "EspGisViewer",
+                    "DomainBrowserProfiles",
+                    Process.GetCurrentProcess().Id.ToString());
+                Directory.CreateDirectory(userDataDirectory);
+
+                _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                {
+                    ExecutablePath = executablePath,
+                    Headless = true,
+                    Timeout = RequestTimeoutMs,
+                    UserDataDir = userDataDirectory,
+                    Args = new[]
+                    {
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--window-size=1280,900"
+                    }
+                });
+
+                return _browser;
+            }
+            finally
+            {
+                BrowserLaunchLock.Release();
+            }
+        }
+
+        private static string FindPackagedBrowserExecutable()
+        {
+            var executablePath = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                PackagedBrowserDirectoryName,
+                PackagedBrowserApplicationDirectoryName,
+                ChromeExecutableName);
+            if (!File.Exists(executablePath))
+            {
+                throw new FileNotFoundException($"Packaged Chrome executable was not found: {executablePath}");
+            }
+
+            return executablePath;
         }
 
         private static JObject ParseNextDataPayload(string html)

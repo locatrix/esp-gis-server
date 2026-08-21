@@ -177,18 +177,6 @@ export default function MapView(props: {
       } as mapboxgl.StyleImageInterface
     }
 
-    const cloneFeatureCollection = (features: RealestateFeature[]): RealestateFeatureCollection => ({
-      type: 'FeatureCollection',
-      features: features.map(feature => ({
-        ...feature,
-        geometry: {
-          ...feature.geometry,
-          coordinates: [...feature.geometry.coordinates]
-        },
-        properties: { ...feature.properties }
-      }))
-    })
-
     const normaliseRealestatePins = (featureCollection: unknown): RealestateFeatureCollection => {
       const features = Array.isArray((featureCollection as RealestateFeatureCollection | null)?.features)
         ? (featureCollection as RealestateFeatureCollection).features
@@ -201,10 +189,112 @@ export default function MapView(props: {
           properties: {
             ...(feature.properties ?? {}),
             realestatePinKey: String(feature.properties?.id ?? index),
-            pinState: REAL_ESTATE_PIN_STATE_LOADING,
-            floorplanUrl: ''
+            pinState: typeof feature.properties?.floorplanUrl === 'string' && feature.properties.floorplanUrl.trim() !== ''
+              ? REAL_ESTATE_PIN_STATE_READY
+              : REAL_ESTATE_PIN_STATE_LOADING,
+            floorplanUrl: typeof feature.properties?.floorplanUrl === 'string'
+              ? feature.properties.floorplanUrl.trim()
+              : ''
           }
         }))
+      }
+    }
+
+    const cloneFeatureCollection = (features: RealestateFeature[]): RealestateFeatureCollection => ({
+      type: 'FeatureCollection',
+      features: features.map(feature => ({
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: [...feature.geometry.coordinates]
+        },
+        properties: { ...feature.properties }
+      }))
+    })
+
+    const resolveRealestateFloorplans = async (featureCollection: RealestateFeatureCollection, generation: number) => {
+      const activeFeatures = featureCollection.features.map(feature => ({
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: [...feature.geometry.coordinates]
+        },
+        properties: { ...feature.properties }
+      }))
+
+      const requestAbortController = new AbortController()
+      floorplanAbortController = requestAbortController
+
+      for (const feature of [...activeFeatures]) {
+        if (generation !== realestateLoadGeneration || requestAbortController.signal.aborted) {
+          return
+        }
+
+        const pinKey = String(feature.properties.realestatePinKey ?? '')
+        const existingFloorplanUrl = typeof feature.properties.floorplanUrl === 'string'
+          ? feature.properties.floorplanUrl.trim()
+          : ''
+        if (existingFloorplanUrl !== '') {
+          continue
+        }
+
+        const endpoint = typeof feature.properties.floorplanUrlEndpoint === 'string'
+          ? feature.properties.floorplanUrlEndpoint
+          : ''
+        const activeIndex = activeFeatures.findIndex(candidate => String(candidate.properties.realestatePinKey ?? '') === pinKey)
+        if (activeIndex === -1) {
+          continue
+        }
+
+        if (endpoint === '') {
+          activeFeatures.splice(activeIndex, 1)
+          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
+          continue
+        }
+
+        try {
+          const floorplanUrl = await fetchFloorplanUrl(endpoint, requestAbortController.signal)
+          if (generation !== realestateLoadGeneration || requestAbortController.signal.aborted) {
+            return
+          }
+
+          const resolvedIndex = activeFeatures.findIndex(candidate => String(candidate.properties.realestatePinKey ?? '') === pinKey)
+          if (resolvedIndex === -1) {
+            continue
+          }
+
+          if (floorplanUrl == null) {
+            activeFeatures.splice(resolvedIndex, 1)
+          } else {
+            activeFeatures[resolvedIndex] = {
+              ...activeFeatures[resolvedIndex],
+              properties: {
+                ...activeFeatures[resolvedIndex].properties,
+                pinState: REAL_ESTATE_PIN_STATE_READY,
+                floorplanUrl
+              }
+            }
+          }
+
+          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
+        } catch (error) {
+          if (requestAbortController.signal.aborted) {
+            return
+          }
+
+          console.error('Failed to resolve floorplan URL', error)
+          const failedIndex = activeFeatures.findIndex(candidate => String(candidate.properties.realestatePinKey ?? '') === pinKey)
+          if (failedIndex === -1) {
+            continue
+          }
+
+          activeFeatures.splice(failedIndex, 1)
+          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
+        }
+      }
+
+      if (generation === realestateLoadGeneration) {
+        floorplanAbortController = null
       }
     }
 
@@ -263,81 +353,6 @@ export default function MapView(props: {
       })
 
       return floorplanUrl
-    }
-
-    const resolveRealestateFloorplans = async (featureCollection: RealestateFeatureCollection, generation: number) => {
-      const activeFeatures = featureCollection.features.map(feature => ({
-        ...feature,
-        geometry: {
-          ...feature.geometry,
-          coordinates: [...feature.geometry.coordinates]
-        },
-        properties: { ...feature.properties }
-      }))
-
-      const requestAbortController = new AbortController()
-      floorplanAbortController = requestAbortController
-
-      for (const feature of [...activeFeatures]) {
-        if (generation !== realestateLoadGeneration || requestAbortController.signal.aborted) {
-          return
-        }
-
-        const pinKey = String(feature.properties.realestatePinKey ?? '')
-        const endpoint = typeof feature.properties.floorplanUrlEndpoint === 'string'
-          ? feature.properties.floorplanUrlEndpoint
-          : ''
-
-        const activeIndex = activeFeatures.findIndex(candidate => String(candidate.properties.realestatePinKey ?? '') === pinKey)
-        if (activeIndex === -1) {
-          continue
-        }
-
-        if (endpoint === '') {
-          activeFeatures.splice(activeIndex, 1)
-          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
-          continue
-        }
-
-        try {
-          const floorplanUrl = await fetchFloorplanUrl(endpoint, requestAbortController.signal)
-          if (generation !== realestateLoadGeneration || requestAbortController.signal.aborted) {
-            return
-          }
-
-          const resolvedIndex = activeFeatures.findIndex(candidate => String(candidate.properties.realestatePinKey ?? '') === pinKey)
-          if (resolvedIndex === -1) {
-            continue
-          }
-
-          if (floorplanUrl == null) {
-            activeFeatures.splice(resolvedIndex, 1)
-          } else {
-            activeFeatures[resolvedIndex] = {
-              ...activeFeatures[resolvedIndex],
-              properties: {
-                ...activeFeatures[resolvedIndex].properties,
-                pinState: REAL_ESTATE_PIN_STATE_READY,
-                floorplanUrl
-              }
-            }
-          }
-
-          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
-        } catch (error) {
-          if (requestAbortController.signal.aborted) {
-            return
-          }
-
-          console.error('Failed to preload floorplan URL', error)
-          activeFeatures.splice(activeIndex, 1)
-          setRealestatePinsData(cloneFeatureCollection(activeFeatures))
-        }
-      }
-
-      if (generation === realestateLoadGeneration) {
-        floorplanAbortController = null
-      }
     }
 
     const installRealestatePinsLayers = () => {
@@ -488,7 +503,7 @@ export default function MapView(props: {
           return
         }
 
-        setRealestatePinsData(cloneFeatureCollection(featureCollection.features))
+        setRealestatePinsData(featureCollection)
         void resolveRealestateFloorplans(featureCollection, requestGeneration)
       } catch (error) {
         if (requestAbortController.signal.aborted) {

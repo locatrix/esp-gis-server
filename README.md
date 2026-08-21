@@ -7,9 +7,16 @@ ESP GIS Server is a free, standalone web server written for the .NET Framework. 
 This allows you to consume ESP GIS GeoPackages in a self-hosted way, without any dependencies on Locatrix web services. This approach is recommended for emergency services applications.
 
 ### Requirements
-*   .NET Framework 4.8
+*   .NET Framework 4.8 or later
 *   Windows 10 or later
 *   IIS (for production hosting)
+*   The packaged Chromium files under `EspGisViewer/Browser`
+
+The ESP GIS server targets .NET Framework 4.8. Realestate floorplan lookups use
+PuppeteerSharp to run the project-packaged Chromium executable in headless mode.
+The server only launches an executable found under `EspGisViewer/Browser`; it does
+not use Chrome or Chromium installed on the host machine. The packaged runtime is
+Chrome `150.0.7871.181` at `EspGisViewer/Browser/Application/chrome.exe`.
 
 ## Getting Started
 
