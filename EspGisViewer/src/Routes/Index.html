@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="light">
+    <title>ESP GIS Server</title>
+    <style>
+      :root {
+        --ink: #131313;
+        --muted: #626a70;
+        --blue: #54afdb;
+        --blue-dark: #1677a6;
+        --blue-soft: #eaf6fb;
+        --line: #dce3e7;
+        --surface: #ffffff;
+        --canvas: #f4f7f8;
+        --code: #182126;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--canvas);
+        font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      a { color: inherit; }
+
+      .shell {
+        width: min(1120px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      .topbar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .topbar-inner {
+        min-height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        text-decoration: none;
+      }
+
+      .brand-name {
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .brand-product {
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .version {
+        padding: 5px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .hero {
+        padding: 68px 0 52px;
+        background: var(--surface);
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--blue-dark);
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      h1, h2, h3, p { margin-top: 0; }
+
+      h1 {
+        max-width: 720px;
+        margin-bottom: 16px;
+        font-size: clamp(36px, 5vw, 48px);
+        line-height: 1.08;
+      }
+
+      .lede {
+        max-width: 690px;
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      main { padding: 40px 0 72px; }
+
+      .endpoint-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 56px;
+      }
+
+      .endpoint {
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        text-decoration: none;
+        transition: border-color 140ms ease, transform 140ms ease;
+      }
+
+      .endpoint:hover {
+        border-color: var(--blue);
+        transform: translateY(-2px);
+      }
+
+      .endpoint-label {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .endpoint-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .endpoint-arrow {
+        color: var(--blue-dark);
+        font-size: 22px;
+      }
+
+      .guide-heading {
+        max-width: 680px;
+        margin-bottom: 28px;
+      }
+
+      .guide-layout {
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr);
+        gap: 0;
+        align-items: start;
+        border-top: 1px solid var(--line);
+      }
+
+      .guide-layout > *,
+      .step {
+        min-width: 0;
+      }
+
+      .guide-ribbon {
+        position: sticky;
+        top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 28px 20px 28px 0;
+        border-right: 1px solid var(--line);
+      }
+
+      .guide-tab {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 13px 14px;
+        border: 0;
+        border-left: 3px solid transparent;
+        border-radius: 0 6px 6px 0;
+        color: var(--muted);
+        background: transparent;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .guide-tab:hover {
+        color: var(--ink);
+        background: var(--blue-soft);
+      }
+
+      .guide-tab:focus-visible {
+        outline: 2px solid var(--blue-dark);
+        outline-offset: 2px;
+      }
+
+      .guide-tab.is-active {
+        border-left-color: var(--blue);
+        color: var(--ink);
+        background: var(--surface);
+      }
+
+      .guide-tab-title {
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .guide-tab-description {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .guide-panels {
+        min-width: 0;
+        padding: 28px 0 0 48px;
+      }
+
+      .guides-ready .guide-panel:not(.is-active) {
+        display: none;
+      }
+
+      .guide-panel-header {
+        max-width: 720px;
+        margin-bottom: 30px;
+      }
+
+      h2 {
+        margin-bottom: 12px;
+        font-size: 32px;
+        line-height: 1.2;
+      }
+
+      h3 {
+        margin-bottom: 10px;
+        font-size: 18px;
+      }
+
+      h4 {
+        margin: 22px 0 8px;
+        font-size: 15px;
+      }
+
+      .muted { color: var(--muted); }
+
+      .step {
+        padding: 28px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .step:first-child {
+        padding-top: 0;
+        border-top: 0;
+      }
+
+      .step-number {
+        display: inline-flex;
+        width: 28px;
+        height: 28px;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        border-radius: 50%;
+        color: var(--ink);
+        background: var(--blue);
+        font-size: 13px;
+        font-weight: 700;
+        vertical-align: 2px;
+      }
+
+      pre {
+        width: 100%;
+        max-width: 100%;
+        margin: 16px 0 0;
+        padding: 18px 20px;
+        overflow-x: auto;
+        border-radius: 6px;
+        color: #eef7fa;
+        background: var(--code);
+        font: 13px/1.65 Consolas, "Liberation Mono", monospace;
+        white-space: pre;
+      }
+
+      code {
+        font-family: Consolas, "Liberation Mono", monospace;
+      }
+
+      p code, td code {
+        padding: 2px 5px;
+        border-radius: 4px;
+        color: #164e68;
+        background: var(--blue-soft);
+        font-size: 0.9em;
+      }
+
+      .parameter-list {
+        width: 100%;
+        margin-top: 16px;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      .parameter-list th,
+      .parameter-list td {
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .parameter-list th {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .note {
+        margin-top: 16px;
+        padding: 16px 18px;
+        border-left: 3px solid var(--blue);
+        background: var(--blue-soft);
+      }
+
+      .note p:last-child { margin-bottom: 0; }
+
+      .arcgis-method {
+        padding: 28px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .arcgis-method:first-of-type {
+        padding-top: 0;
+        border-top: 0;
+      }
+
+      .method-label {
+        display: inline-block;
+        margin-bottom: 8px;
+        color: var(--blue-dark);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .instruction-list {
+        margin: 14px 0 0;
+        padding-left: 22px;
+      }
+
+      .instruction-list li {
+        margin-bottom: 10px;
+        padding-left: 4px;
+      }
+
+      footer {
+        padding: 24px 0;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        background: var(--surface);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="shell topbar-inner">
+        <a class="brand" href="__HOME_URL__" aria-label="ESP GIS Server home">
+          <span class="brand-name">locatrix</span>
+          <span class="brand-product">ESP GIS Server</span>
+        </a>
+        <span class="version">__VERSION__ &middot; __BUILD_DATE__</span>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="shell">
+        <p class="eyebrow">Emergency spatial data</p>
+        <h1>Building intelligence, ready to use.</h1>
+        <p class="lede">Explore current ESP floor plans or connect your GIS tools to the server's WFS and WMTS endpoints.</p>
+      </div>
+    </section>
+
+    <main>
+      <div class="shell">
+        <nav class="endpoint-grid" aria-label="Server endpoints">
+          <a class="endpoint" href="__VIEWER_URL__">
+            <span class="endpoint-label">Explore</span>
+            <span class="endpoint-title">Online map viewer <span class="endpoint-arrow" aria-hidden="true">&rarr;</span></span>
+          </a>
+          <a class="endpoint" href="__WFS_URL__">
+            <span class="endpoint-label">Features</span>
+            <span class="endpoint-title">WFS endpoint <span class="endpoint-arrow" aria-hidden="true">&rarr;</span></span>
+          </a>
+          <a class="endpoint" href="__WMTS_URL__">
+            <span class="endpoint-label">Map tiles</span>
+            <span class="endpoint-title">WMTS capabilities <span class="endpoint-arrow" aria-hidden="true">&rarr;</span></span>
+          </a>
+        </nav>
+
+        <section class="developer-guides" data-developer-guides aria-labelledby="developer-guides-heading">
+          <div class="guide-heading">
+            <p class="eyebrow">Developer guides</p>
+            <h2 id="developer-guides-heading">Connect to ESP data</h2>
+            <p class="muted">Choose a guide to view integration steps and endpoint examples.</p>
+          </div>
+
+          <div class="guide-layout">
+            <div class="guide-ribbon" role="tablist" aria-label="Developer guides" aria-orientation="vertical">
+              <button class="guide-tab is-active" id="guide-tab-geojson" type="button" role="tab" aria-selected="true" aria-controls="guide-geojson" tabindex="0">
+                <span class="guide-tab-title">GeoJSON API</span>
+                <span class="guide-tab-description">Query WFS features</span>
+              </button>
+              <button class="guide-tab" id="guide-tab-arcgis" type="button" role="tab" aria-selected="false" aria-controls="guide-arcgis" tabindex="-1">
+                <span class="guide-tab-title">ArcGIS</span>
+                <span class="guide-tab-description">Add WFS and WMTS layers</span>
+              </button>
+            </div>
+
+            <div class="guide-panels">
+              <article class="guide-panel is-active" id="guide-geojson" role="tabpanel" aria-labelledby="guide-tab-geojson">
+                <header class="guide-panel-header">
+                  <p class="eyebrow">GeoJSON API</p>
+                  <h2>Use GeoJSON</h2>
+                  <p class="muted">Request building features as standard GeoJSON for web maps, scripts, and data integrations.</p>
+                </header>
+
+                <section class="step">
+                  <h3><span class="step-number">1</span>Request features</h3>
+                  <p>Add <code>outputFormat=GEOJSON</code> to a WFS <code>GetFeature</code> request.</p>
+                  <pre><code>curl "__GEOJSON_URL__"</code></pre>
+                </section>
+
+                <section class="step">
+                  <h3><span class="step-number">2</span>Limit the result</h3>
+                  <p>Use a bounding box and count when you only need features near the current map view.</p>
+                  <pre><code>curl "__FILTERED_GEOJSON_URL__"</code></pre>
+
+                  <table class="parameter-list">
+                    <thead>
+                      <tr><th>Parameter</th><th>Purpose</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><code>typeNames=plans</code></td><td>Returns building plan features.</td></tr>
+                      <tr><td><code>bbox=minX,minY,maxX,maxY</code></td><td>Filters features spatially. Coordinates default to EPSG:4326.</td></tr>
+                      <tr><td><code>count=100</code></td><td>Limits the number of returned features.</td></tr>
+                      <tr><td><code>featureId=Point.1</code></td><td>Returns one known feature by its GML identifier.</td></tr>
+                      <tr><td><code>srsName=EPSG:3857</code></td><td>Requests Web Mercator coordinates instead of EPSG:4326.</td></tr>
+                    </tbody>
+                  </table>
+                </section>
+
+                <section class="step">
+                  <h3><span class="step-number">3</span>Read the response</h3>
+                  <p>The response is a GeoJSON <code>FeatureCollection</code>. Structured properties such as <code>floors</code> are returned as native JSON arrays when supported by the current GeoPackage.</p>
+                  <pre><code>{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [151.2074, -33.8662]
+      },
+      "properties": {
+        "GmlID": "Point.1",
+        "buildingName": "Example Building",
+        "floors": ["Ground Level", "Level 1"],
+        "buildingCode": "bld_example"
+      }
+    }
+  ]
+}</code></pre>
+
+                  <div class="note">
+                    <p><strong>Need XML?</strong> Omit <code>outputFormat</code>. The default WFS response is XML, where structured values may be formatted as readable delimited text.</p>
+                  </div>
+                </section>
+              </article>
+
+              <article class="guide-panel" id="guide-arcgis" role="tabpanel" aria-labelledby="guide-tab-arcgis">
+                <header class="guide-panel-header">
+                  <p class="eyebrow">ArcGIS integration</p>
+                  <h2>Add ESP layers to ArcGIS</h2>
+                  <p class="muted">Use WFS for queryable building features and WMTS for rendered floor-plan imagery.</p>
+                </header>
+
+                <div class="note">
+                  <p><strong>WMTS requires multiple layers.</strong> ESP publishes coverage and each floor level as separate WMTS layers. Add every coverage or floor layer your map needs; adding one WMTS layer does not ingest the complete floor-plan set.</p>
+                </div>
+
+                <section class="arcgis-method">
+                  <span class="method-label">Features and attributes</span>
+                  <h3>Add the WFS plans layer</h3>
+                  <p>Use this connection for building points and attributes such as campus, building, and floor names.</p>
+                  <pre><code>__WFS_URL__</code></pre>
+
+                  <h4>ArcGIS Pro</h4>
+                  <ol class="instruction-list">
+                    <li>Open <strong>Insert</strong> &gt; <strong>Connections</strong> &gt; <strong>Server</strong> &gt; <strong>New WFS Server</strong>.</li>
+                    <li>Paste the WFS URL above into <strong>Server URL</strong>, select WFS version <strong>2.0.0</strong>, and click <strong>OK</strong>.</li>
+                    <li>Expand the new connection under <strong>Servers</strong> in the Catalog pane, then add the <strong>plans</strong> layer to the current map.</li>
+                    <li>To request native JSON values such as the <code>floors</code> array, add the custom request parameter <code>OUTPUTFORMAT=GEOJSON</code> and use snapshot mode.</li>
+                  </ol>
+
+                  <h4>ArcGIS Online Map Viewer</h4>
+                  <ol class="instruction-list">
+                    <li>Choose <strong>Add</strong> &gt; <strong>Add layer from URL</strong>.</li>
+                    <li>Paste the WFS URL, choose <strong>OGC WFS web service</strong>, and click <strong>Next</strong>.</li>
+                    <li>Select the <strong>plans</strong> layer, set an appropriate maximum feature limit, and click <strong>Add to map</strong>.</li>
+                  </ol>
+                </section>
+
+                <section class="arcgis-method">
+                  <span class="method-label">Rendered floor plans</span>
+                  <h3>Add the WMTS floor layers</h3>
+                  <p>Use this connection for cached floor-plan imagery aligned to the map.</p>
+                  <pre><code>__WMTS_URL__</code></pre>
+
+                  <h4>ArcGIS Pro</h4>
+                  <ol class="instruction-list">
+                    <li>Open <strong>Insert</strong> &gt; <strong>Connections</strong> &gt; <strong>Server</strong> &gt; <strong>New WMTS Server</strong>.</li>
+                    <li>Paste the WMTS capabilities URL above into <strong>Server URL</strong> and click <strong>OK</strong>.</li>
+                    <li>Expand the WMTS connection in the Catalog pane and add each required layer, such as <strong>Coverage</strong>, <strong>Ground Level</strong>, and <strong>Level 1</strong>.</li>
+                  </ol>
+
+                  <h4>ArcGIS Online Map Viewer</h4>
+                  <ol class="instruction-list">
+                    <li>Choose <strong>Add</strong> &gt; <strong>Add layer from URL</strong>, paste the WMTS URL, and choose <strong>OGC WMTS web service</strong>.</li>
+                    <li>Click <strong>Next</strong>, choose one layer and its matrix tile option, then click <strong>Add to map</strong>.</li>
+                    <li>Repeat the entire add-layer process for every additional coverage or floor layer required by the map.</li>
+                  </ol>
+
+                  <div class="note">
+                    <p>Use a Web Mercator-compatible basemap. ArcGIS requires the WMTS tiling scheme and the map's basemap coordinate system to be compatible.</p>
+                  </div>
+                </section>
+              </article>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="shell">ESP GIS Server by Locatrix</div>
+    </footer>
+    <script>
+      (function () {
+        var root = document.querySelector('[data-developer-guides]');
+        if (!root) return;
+
+        var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
+        var panels = Array.prototype.slice.call(root.querySelectorAll('[role="tabpanel"]'));
+
+        function activate(tab, moveFocus) {
+          var panelId = tab.getAttribute('aria-controls');
+
+          tabs.forEach(function (candidate) {
+            var active = candidate === tab;
+            candidate.classList.toggle('is-active', active);
+            candidate.setAttribute('aria-selected', active ? 'true' : 'false');
+            candidate.setAttribute('tabindex', active ? '0' : '-1');
+          });
+
+          panels.forEach(function (panel) {
+            var active = panel.id === panelId;
+            panel.classList.toggle('is-active', active);
+            panel.hidden = !active;
+          });
+
+          if (moveFocus) tab.focus();
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', '#' + panelId);
+          }
+        }
+
+        tabs.forEach(function (tab, index) {
+          tab.addEventListener('click', function () { activate(tab, false); });
+          tab.addEventListener('keydown', function (event) {
+            var nextIndex = null;
+            if (event.key === 'ArrowDown') nextIndex = (index + 1) % tabs.length;
+            if (event.key === 'ArrowUp') nextIndex = (index - 1 + tabs.length) % tabs.length;
+            if (event.key === 'Home') nextIndex = 0;
+            if (event.key === 'End') nextIndex = tabs.length - 1;
+            if (nextIndex == null) return;
+
+            event.preventDefault();
+            activate(tabs[nextIndex], true);
+          });
+        });
+
+        root.classList.add('guides-ready');
+        var requestedPanel = window.location.hash === '#guide-arcgis' ? 'guide-arcgis' : 'guide-geojson';
+        var initialTab = tabs.filter(function (tab) {
+          return tab.getAttribute('aria-controls') === requestedPanel;
+        })[0] || tabs[0];
+        activate(initialTab, false);
+      }());
+    </script>
+  </body>
+</html>

@@ -74,6 +74,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Global.asax" />
+    <EmbeddedResource Include="src\Routes\Index.html">
+      <LogicalName>EspGisViewer.Routes.Index.html</LogicalName>
+    </EmbeddedResource>
     <Content Include="scripts\fetch-domain-floorplan.mjs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>scripts\fetch-domain-floorplan.mjs</TargetPath>
@@ -143,6 +146,35 @@
       <TargetPath>LocatrixDeps\x64\e_sqlite3.dll</TargetPath>
     </Content>
   </ItemGroup>
+  <Target Name="GenerateBuildMetadata" BeforeTargets="CoreCompile">
+    <Exec Command="git describe --tags --abbrev=0"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low">
+      <Output TaskParameter="ConsoleOutput" ItemName="_GitDescribeOutput" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitDescribeExitCode" />
+    </Exec>
+    <PropertyGroup>
+      <_BuildVersion>@(_GitDescribeOutput)</_BuildVersion>
+      <_BuildDate>$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd'))</_BuildDate>
+    </PropertyGroup>
+    <ItemGroup>
+      <_BuildAssemblyAttributes Include="System.Reflection.AssemblyInformationalVersionAttribute"
+                                Condition="'$(_GitDescribeExitCode)' == '0' and '$(_BuildVersion)' != ''">
+        <_Parameter1>$(_BuildVersion)</_Parameter1>
+      </_BuildAssemblyAttributes>
+      <_BuildAssemblyAttributes Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>BuildDate</_Parameter1>
+        <_Parameter2>$(_BuildDate)</_Parameter2>
+      </_BuildAssemblyAttributes>
+    </ItemGroup>
+    <WriteCodeFragment Language="C#"
+                       OutputFile="$(IntermediateOutputPath)GeneratedBuildMetadata.cs"
+                       AssemblyAttributes="@(_BuildAssemblyAttributes)">
+      <Output TaskParameter="OutputFile" ItemName="Compile" />
+    </WriteCodeFragment>
+  </Target>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
