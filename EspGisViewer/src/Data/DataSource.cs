@@ -92,13 +92,13 @@ namespace EspGisViewer.Data
         /// <param name="action">Action to perform with the connection.</param>
         /// <typeparam name="T">Return type of the action.</typeparam>
         /// <returns>Result of the action.</returns>
-        public abstract Task<T> Use<T>(Util.Action<SQLiteAsyncConnection, Task<T>> action);
+        public abstract Task<T> Use<T>(Util.Action<ISQLiteAsyncConnection, Task<T>> action);
 
         /// <summary>
         /// Use this data connection to perform an action without a return value.
         /// </summary>
         /// <param name="action">Action to perform with the connection.</param>
-        public Task Use(Util.Action<SQLiteAsyncConnection, Task> action) => Use(async db => { await action(db); return true; });
+        public Task Use(Util.Action<ISQLiteAsyncConnection, Task> action) => Use(async db => { await action(db); return true; });
         public Task<List<T>> QueryAsync<T>(string sql, params object[] args) where T : new()
         {
             if (args == null || args.Length == 0)

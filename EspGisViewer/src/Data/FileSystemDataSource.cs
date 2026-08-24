@@ -13,7 +13,7 @@ namespace EspGisViewer.Data
 
         private readonly string _packagePath;
 
-        private TaskQueue<SQLiteAsyncConnection> _tilesAndFeaturesDbQueue;
+        private TaskQueue<ISQLiteAsyncConnection> _tilesAndFeaturesDbQueue;
 
         public FileSystemDataSource()
         {
@@ -86,21 +86,21 @@ namespace EspGisViewer.Data
                 return true; // return value doesn't matter
             });
 
-            _tilesAndFeaturesDbQueue = new TaskQueue<SQLiteAsyncConnection>(new SQLiteAsyncConnection(tilesAndFeaturesPath));
+            _tilesAndFeaturesDbQueue = new TaskQueue<ISQLiteAsyncConnection>(new SQLiteAsyncConnection(tilesAndFeaturesPath));
             _tilesAndFeatures = new FileSystemDataConnection(_tilesAndFeaturesDbQueue);
         }
     }
 
     class FileSystemDataConnection : DataConnection
     {
-        private readonly TaskQueue<SQLiteAsyncConnection> _connectionQueue;
+        private readonly TaskQueue<ISQLiteAsyncConnection> _connectionQueue;
         
-        public FileSystemDataConnection(TaskQueue<SQLiteAsyncConnection> connectionQueue)
+        public FileSystemDataConnection(TaskQueue<ISQLiteAsyncConnection> connectionQueue)
         {
             _connectionQueue = connectionQueue ?? throw new ArgumentNullException(nameof(connectionQueue), "Connection queue cannot be null.");
         }
         
-        public override Task<T> Use<T>(Util.Action<SQLiteAsyncConnection, Task<T>> action)
+        public override Task<T> Use<T>(Util.Action<ISQLiteAsyncConnection, Task<T>> action)
         {
             return _connectionQueue.Request(action);
         }
