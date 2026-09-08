@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react"
-import mapboxgl, { MercatorCoordinate, type LngLatLike } from "mapbox-gl"
+import mapboxgl, { type LngLatLike } from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { DEBUG_MODE, SERVER_TARGET_OVERRIDE } from "./main"
+import { getCoverageBounds, type CoverageBounds } from './coverage'
 
 // Shows entirety of Australia
 const INITIAL_CENTER: LngLatLike = [
@@ -62,7 +63,7 @@ type HashParams = {
 export default function MapView(props: {
   selectedLayer: string,
   setSelectedLayer: (layer: string) => void,
-  onChangeView?: (x: number, y: number, zoom: number) => void,
+  onChangeView?: (bounds: CoverageBounds[]) => void,
   style?: React.CSSProperties
 }) {
   mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? null
@@ -556,6 +557,15 @@ export default function MapView(props: {
       }
     }
 
+    const updateCoverageBounds = () => {
+      const bounds = map.getBounds()
+      if (!bounds) return
+      onChangeViewRef.current?.(getCoverageBounds(
+        bounds.getWest(), bounds.getNorth(), bounds.getEast(), bounds.getSouth(),
+        map.getZoom() + LEAFLET_ZOOM_OFFSET
+      ))
+    }
+
     // apply URL hash on load
 
     map.on("load", () => {
@@ -563,6 +573,7 @@ export default function MapView(props: {
       applyHashToMap(map)
       injectSelectedLayer(map, selectedLayerRef.current)
       installRealestatePinsLayers()
+      updateCoverageBounds()
       void fetchRealestatePins()
     })
 
@@ -571,20 +582,12 @@ export default function MapView(props: {
       if (!mapRef.current) return
       updateHashFromMap(map)
 
-      const currPoint = map.getCenter()
-      const currZoom = Math.ceil(map.getZoom() + LEAFLET_ZOOM_OFFSET)
-
-      if (onChangeViewRef.current && currPoint) {
-        const world = lngLatToWorldPixel(currPoint, currZoom)
-        onChangeViewRef.current(
-          Math.floor(world.x / 256),
-          Math.floor(world.y / 256),
-          currZoom
-        )
-      }
+      updateCoverageBounds()
 
       void fetchRealestatePins()
     })
+
+    map.on('resize', updateCoverageBounds)
 
     map.on('click', REAL_ESTATE_CLUSTER_LAYER_ID, event => {
       const feature = event.features?.[0]
@@ -637,19 +640,6 @@ export default function MapView(props: {
       mapRef.current = null
     }
   }, [])
-
-  function lngLatToWorldPixel(point: LngLatLike, zoom: number) {
-    const TILE_SIZE = 256
-
-    const scale = TILE_SIZE * Math.pow(2, zoom)
-
-    const m = MercatorCoordinate.fromLngLat(point)
-
-    const worldX = m.x * scale
-    const worldY = m.y * scale
-
-    return { x: worldX, y: worldY }
-  }
 
   function extractHashParams (): HashParams {
     let params: HashParams = {}

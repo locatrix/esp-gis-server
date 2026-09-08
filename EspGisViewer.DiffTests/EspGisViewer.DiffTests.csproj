@@ -40,6 +40,7 @@
         <Reference Include="System.Core"/>
         <Reference Include="System.Data"/>
         <Reference Include="System.Numerics" />
+        <Reference Include="System.Web" />
         <Reference Include="System.Xml"/>
     </ItemGroup>
     <ItemGroup>
@@ -55,11 +56,21 @@
       <Content Include="README.md" />
     </ItemGroup>
     <ItemGroup>
+            <ProjectReference Include="..\EspGisViewer\EspGisViewer.csproj">
+                <Project>{FE4E5AB5-2812-49C8-B501-445D45EC621A}</Project>
+                <Name>EspGisViewer</Name>
+            </ProjectReference>
+        </ItemGroup>
+        <ItemGroup>
       <PackageReference Include="NUnit" Version="3.5.0" />
       <PackageReference Include="sqlite-net-base" Version="1.9.172" />
-      <PackageReference Include="SQLitePCLRaw.core" Version="2.1.2" />
+    <PackageReference Include="SQLitePCLRaw.core" Version="2.1.11" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+    <Target Name="RunFrontendTests" BeforeTargets="VSTest" Condition="'$(DesignTimeBuild)' != 'true'">
+        <Message Text="Running frontend tests (yarn test)..." Importance="high" />
+        <Exec Command="yarn test" WorkingDirectory="$(MSBuildProjectDirectory)\..\EspGisViewer\Client" StandardOutputImportance="high" />
+    </Target>
     <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
          Other similar extension points exist, see Microsoft.Common.targets.
     <Target Name="BeforeBuild">

@@ -1,16 +1,12 @@
 import {useEffect, useState} from 'react'
-import {Button, Flex, Select, Title, useMantineTheme} from "@mantine/core";
+import {Button, Flex, Select, Title} from "@mantine/core";
 import MapView from "./MapView.tsx";
 import {useQuery} from "@tanstack/react-query";
 import {useColorScheme, useDidUpdate, useThrottledState} from "@mantine/hooks";
 import {usePop} from "./components/Pop.tsx";
 import { DEBUG_MODE, SERVER_TARGET_OVERRIDE } from './main.tsx';
 
-interface LayerEntry {
-  value: string
-  label: string
-  kind: 'category' | 'level' | 'name'
-}
+import {fetchCoverage, type CoverageBounds, type LayerEntry} from './coverage.ts';
 
 export default function App() {
   const theme = useColorScheme()
@@ -25,29 +21,23 @@ export default function App() {
   const [selected, setSelected] = useState<string>('coverage')
   const [tempSelected, setTempSelected] = useThrottledState<string | null>(null, 500)
 
-  const [zoom, setZoom] = useState(4)
-  const [x, setX] = useState(0)
-  const [y, setY] = useState(0)
-
-  const [coverage, setCoverage] = useState<LayerEntry[]>([{ value: 'coverage', label: 'Coverage', kind: 'category' }])
+  const [bounds, setBounds] = useState<CoverageBounds[] | null>(null)
 
   const { popOpen, Pop } = usePop()
 
-  const { isPending, error } = useQuery({
-    queryKey: ['coverage', zoom, x, y],
-    queryFn: async () => {
-      const resp = await fetch(`${coveragePath}/${zoom}/${x}/${y}`)
-      const data: LayerEntry[] = await resp.json()
-      setCoverage(data)
-
-      // only apply scoped selection when zoom is not the default value
-      if (zoom !== 4 && !data.some(e => e.value === selected)) {
-        setSelected('coverage')
-      }
-      
-      return data
-    }
+  const { data, error } = useQuery({
+    queryKey: ['coverage', coveragePath, bounds],
+    enabled: bounds != null,
+    queryFn: ({signal}) => fetchCoverage(coveragePath, bounds!, signal)
   })
+
+  const coverage: LayerEntry[] = data ?? [{ value: 'coverage', label: 'Coverage', kind: 'category' }]
+
+  useEffect(() => {
+    if (data && bounds?.[0]?.zoom !== 4 && !data.some(e => e.value === selected)) {
+      setSelected('coverage')
+    }
+  }, [data, bounds, selected])
   
   useDidUpdate(() => {
     if (tempSelected != null) {
@@ -74,11 +64,7 @@ export default function App() {
       <MapView
         selectedLayer={tempSelected ?? selected}
         setSelectedLayer={setSelected}
-        onChangeView={(x, y, zoom) => {
-          setX(x)
-          setY(y)
-          setZoom(zoom)
-        }}
+        onChangeView={setBounds}
         style={{ zIndex: 0 }}
       />
       {<Flex style={{zIndex: 1, position: 'fixed', bottom: 32, left: 8}}>

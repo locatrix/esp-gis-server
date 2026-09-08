@@ -46,6 +46,18 @@ Once the server is running, the following URLs can be used (the port will be ass
 | WFS Endpoint | `http://localhost:[PORT]/wfs` |
 | WMTS Endpoint | `http://localhost:[PORT]/wmts/capabilities.xml` |
 
+### Coverage endpoint
+
+`GET /coverage/{tileMatrix}/{minTileCol}/{minTileRow}/{maxTileCol}/{maxTileRow}`
+
+Returns the distinct layers with at least one tile inside the axis-aligned bounding box (AABB) at the requested zoom. Coordinates are **XYZ tile indices**, not longitude/latitude; columns increase eastward and rows increase southward. Both minimum and maximum bounds are inclusive, so equal minima and maxima query a single tile.
+
+For example, `/coverage/18/241075/157291/241077/157293` queries a 3-by-3 tile area. The response remains an array of `{ "value": "...", "label": "...", "kind": "category|level|name" }` entries in the existing layer sort order; no matches returns `[]`.
+
+Zoom must be an integer from 0 to 30, with `0 <= min <= max < 2^zoom` on both axes. Invalid bounds return HTTP 400. Requests crossing the antimeridian must be split into two AABBs. When authentication is configured, prefix the URL with the access token as for the other endpoints.
+
+This replaces the former single-tile URL. Both viewers now use the full viewport bounds, including on initial load and resize.
+
 ### Running in Production
 
 For production use, it is recommended to deploy the `EspGisViewer` project to a dedicated Internet Information Services (IIS) server. IP-based restrictions can be applied in IIS to ensure that only authorized traffic is able to access the server.

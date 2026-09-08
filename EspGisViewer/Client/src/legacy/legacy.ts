@@ -1,4 +1,5 @@
 import * as L from 'leaflet'
+import { fetchCoverage, getCoverageBounds } from '../coverage'
 
 export async function startLegacy() {
   const selectElem = document.getElementById('layer-select') as HTMLSelectElement
@@ -6,11 +7,6 @@ export async function startLegacy() {
   // handles situations when the esp-gis-server is hosted within a folder
   const wmtsPath = location.pathname.replace('/viewer', '/wmts')
   const coveragePath = location.pathname.replace('/viewer', '/coverage')
-
-  const getCoverage = async (zoom: number, x: number, y: number) => {
-    const resp = await fetch(`${coveragePath}/${zoom}/${x}/${y}`)
-    return await resp.json()
-  }
 
   const map = L.map('map').setView([-25.839449402063185,133.15429687500003], 4);
   window['map' as any] = map as any;
@@ -41,29 +37,27 @@ export async function startLegacy() {
   }
 
   const onUpdateLayerSelector = async () => {
-    let currZoom = Math.ceil(map.getZoom())
-    // zoom out a bit to include more coverage tiles
-    currZoom = Math.max(1, currZoom - 2)
-    const currPoint = map.project(map.getCenter(), currZoom)
-    const tx = Math.floor(currPoint.x / 256)
-    const ty = Math.floor(currPoint.y / 256)
+    const bounds = map.getBounds()
+    const layers = await fetchCoverage(coveragePath, getCoverageBounds(
+      bounds.getWest(), bounds.getNorth(), bounds.getEast(), bounds.getSouth(), map.getZoom()
+    ))
 
-    let layers: string[] = await getCoverage(currZoom, tx, ty)
-
-    layers.unshift('coverage')
+    if (!layers.some(layer => layer.value === 'coverage')) {
+      layers.unshift({ value: 'coverage', label: 'Coverage', kind: 'category' })
+    }
 
     selectElem.innerHTML = ''
 
     let didSelect = false
     for (let layer of layers) {
       let option = document.createElement('option')
-      if (layer === selectedLayer) {
+      if (layer.value === selectedLayer) {
         option.selected = true
         didSelect = true
       }
 
-      option.value = layer
-      option.textContent = layer
+      option.value = layer.value
+      option.textContent = layer.label
       selectElem.appendChild(option)
     }
 
@@ -90,7 +84,7 @@ export async function startLegacy() {
     }, 300)
   }
 
-  map.on('zoomend moveend', onMapMoved)
+  map.on('zoomend moveend resize', onMapMoved)
 
   const onHashChanged = () => {
     // parse fragment in URL and auto pan/zoom to the desired location
@@ -134,6 +128,7 @@ export async function startLegacy() {
   }
 
   onHashChanged()
+  onMapMoved()
 
   window.addEventListener('hashchange', onHashChanged)
 

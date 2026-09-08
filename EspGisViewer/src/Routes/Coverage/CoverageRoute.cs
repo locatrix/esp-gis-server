@@ -18,9 +18,11 @@ namespace EspGisViewer.Routes.Coverage
             {
                 using (router.Param("tileMatrix"))
                 {
-                    using (router.Param("tileCol"))
+                    using (router.Param("minTileCol"))
                     {
-                        using (router.Param("tileRow"))
+                        using (router.Param("minTileRow"))
+                        using (router.Param("maxTileCol"))
+                        using (router.Param("maxTileRow"))
                         {
                             router.SetHandler(controller.HandleCoverage);
                         }
@@ -30,7 +32,7 @@ namespace EspGisViewer.Routes.Coverage
         }
 
         /// <summary>
-        /// Registers the WMTS routes.
+        /// Registers the coverage routes.
         /// </summary>
         public static void Register(IRouter router, DataSource dataSource)
         {

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test": "node --test src/coverage.test.mjs",
     "dev": "vite",
     "watch": "vite build --watch --base=/viewer --sourcemap=inline",
     "build": "tsc -b && vite build --base=/viewer",

@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-run id="0" runstate="Runnable" testcasecount="19" result="Failed" total="14" passed="0" failed="14" warnings="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.18.3.0" clr-version="4.0.30319.42000" start-time="2026-09-07 23:29:34Z" end-time="2026-09-07 23:29:36Z" duration="1.934115">
+  <command-line><![CDATA["C:\Users\tyreece.rozycki\.nuget\packages\nunit.consolerunner\3.18.3\tools\nunit3-console.exe" C:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\bin\Debug\EspGisViewer.DiffTests.dll --where "test == EspGisViewer.DiffTests.Tests.CoverageTests" --labels=All]]></command-line>
+  <filter>
+    <test>EspGisViewer.DiffTests.Tests.CoverageTests</test>
+  </filter>
+  <test-suite type="Assembly" id="1-1023" name="EspGisViewer.DiffTests.dll" fullname="C:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\bin\Debug\EspGisViewer.DiffTests.dll" runstate="Runnable" testcasecount="19" result="Failed" site="Child" start-time="2026-09-07 23:29:35Z" end-time="2026-09-07 23:29:36Z" duration="0.717933" total="14" passed="0" failed="14" inconclusive="0" skipped="0" asserts="0">
+    <environment framework-version="3.5.0.0" clr-version="4.0.30319.42000" os-version="Microsoft Windows NT 10.0.26200.0" platform="Win32NT" cwd="C:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer\Client" machine-name="CSS-5CD54717Y1" user="tyreece.rozycki" user-domain="CSS" culture="en-AU" uiculture="en-US" os-architecture="x64" />
+    <settings>
+      <setting name="DisposeRunners" value="True" />
+      <setting name="WorkDirectory" value="C:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer\Client" />
+      <setting name="ImageRuntimeVersion" value="4.0.30319" />
+      <setting name="ImageTargetFrameworkName" value=".NETFramework,Version=v4.8" />
+      <setting name="ImageRequiresX86" value="False" />
+      <setting name="ImageRequiresDefaultAppDomainAssemblyResolver" value="False" />
+      <setting name="TargetRuntimeFramework" value="net-4.8" />
+      <setting name="NumberOfTestWorkers" value="8" />
+    </settings>
+    <properties>
+      <property name="_PID" value="36244" />
+      <property name="_APPDOMAIN" value="domain-" />
+    </properties>
+    <failure>
+      <message><![CDATA[One or more child tests had errors]]></message>
+    </failure>
+    <test-suite type="TestSuite" id="1-1024" name="EspGisViewer" fullname="EspGisViewer" runstate="Runnable" testcasecount="19" result="Failed" site="Child" start-time="2026-09-07 23:29:35Z" end-time="2026-09-07 23:29:36Z" duration="0.672643" total="14" passed="0" failed="14" inconclusive="0" skipped="0" asserts="0">
+      <failure>
+        <message><![CDATA[One or more child tests had errors]]></message>
+      </failure>
+      <test-suite type="TestSuite" id="1-1025" name="DiffTests" fullname="EspGisViewer.DiffTests" runstate="Runnable" testcasecount="19" result="Failed" site="Child" start-time="2026-09-07 23:29:35Z" end-time="2026-09-07 23:29:36Z" duration="0.640804" total="14" passed="0" failed="14" inconclusive="0" skipped="0" asserts="0">
+        <failure>
+          <message><![CDATA[One or more child tests had errors]]></message>
+        </failure>
+        <test-suite type="TestSuite" id="1-1026" name="Tests" fullname="EspGisViewer.DiffTests.Tests" runstate="Runnable" testcasecount="19" result="Failed" site="Child" start-time="2026-09-07 23:29:35Z" end-time="2026-09-07 23:29:36Z" duration="0.608863" total="14" passed="0" failed="14" inconclusive="0" skipped="0" asserts="0">
+          <failure>
+            <message><![CDATA[One or more child tests had errors]]></message>
+          </failure>
+          <test-suite type="TestFixture" id="1-1000" name="CoverageTests" fullname="EspGisViewer.DiffTests.Tests.CoverageTests" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" testcasecount="14" result="Failed" site="Child" start-time="2026-09-07 23:29:35Z" end-time="2026-09-07 23:29:36Z" duration="0.577942" total="14" passed="0" failed="14" inconclusive="0" skipped="0" asserts="0">
+            <failure>
+              <message><![CDATA[One or more child tests had errors]]></message>
+            </failure>
+            <test-case id="1-1003" name="EmptyBoundsReturnEmptyArray" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.EmptyBoundsReturnEmptyArray" methodname="EmptyBoundsReturnEmptyArray" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="1469307319" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.110697" asserts="0">
+              <failure>
+                <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+              </failure>
+            </test-case>
+            <test-case id="1-1002" name="EqualBoundsQueryOneTile" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.EqualBoundsQueryOneTile" methodname="EqualBoundsQueryOneTile" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="952243206" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.001812" asserts="0">
+              <failure>
+                <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+              </failure>
+            </test-case>
+            <test-case id="1-1001" name="IncludesEdgesAndInteriorAndDeduplicatesInLayerOrder" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.IncludesEdgesAndInteriorAndDeduplicatesInLayerOrder" methodname="IncludesEdgesAndInteriorAndDeduplicatesInLayerOrder" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="1361772607" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.002536" asserts="0">
+              <failure>
+                <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+              </failure>
+            </test-case>
+            <test-suite type="ParameterizedMethod" id="1-1015" name="InvalidBoundsReturnBadRequest" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" testcasecount="11" result="Failed" site="Child" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.343023" total="11" passed="0" failed="11" inconclusive="0" skipped="0" asserts="0">
+              <failure>
+                <message><![CDATA[One or more child tests had errors]]></message>
+              </failure>
+              <test-case id="1-1004" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;5&quot;,&quot;5&quot;,&quot;3&quot;,&quot;7&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;5&quot;,&quot;5&quot;,&quot;3&quot;,&quot;7&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="280602809" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.001475" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1005" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;7&quot;,&quot;5&quot;,&quot;5&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;7&quot;,&quot;5&quot;,&quot;5&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="528538642" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.001521" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1006" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;-1&quot;,&quot;5&quot;,&quot;5&quot;,&quot;7&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;-1&quot;,&quot;5&quot;,&quot;5&quot;,&quot;7&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="80741265" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.002699" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1007" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;-1&quot;,&quot;5&quot;,&quot;7&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;-1&quot;,&quot;5&quot;,&quot;7&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="1203907497" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.001559" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1008" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;5&quot;,&quot;16&quot;,&quot;7&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;5&quot;,&quot;16&quot;,&quot;7&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="2042118813" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.002030" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1009" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;5&quot;,&quot;5&quot;,&quot;16&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;3&quot;,&quot;5&quot;,&quot;5&quot;,&quot;16&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="1748817894" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.001490" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1010" name="InvalidBoundsReturnBadRequest(&quot;31&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;31&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="410017578" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.002790" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1011" name="InvalidBoundsReturnBadRequest(&quot;-1&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;-1&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="1023962771" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.001373" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1012" name="InvalidBoundsReturnBadRequest(&quot;abc&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;abc&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;,&quot;0&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="1771664685" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.002314" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1013" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;1.5&quot;,&quot;0&quot;,&quot;2&quot;,&quot;2&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;1.5&quot;,&quot;0&quot;,&quot;2&quot;,&quot;2&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="881131535" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.004666" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1-1014" name="InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;0&quot;,&quot;0&quot;,&quot;2147483648&quot;,&quot;2&quot;)" fullname="EspGisViewer.DiffTests.Tests.CoverageTests.InvalidBoundsReturnBadRequest(&quot;4&quot;,&quot;0&quot;,&quot;0&quot;,&quot;2147483648&quot;,&quot;2&quot;)" methodname="InvalidBoundsReturnBadRequest" classname="EspGisViewer.DiffTests.Tests.CoverageTests" runstate="Runnable" seed="1755681071" result="Failed" label="Error" start-time="2026-09-07 23:29:36Z" end-time="2026-09-07 23:29:36Z" duration="0.004198" asserts="0">
+                <failure>
+                  <message><![CDATA[System.IO.FileLoadException : Could not load file or assembly 'SQLitePCLRaw.core, Version=2.1.11.2622, Culture=neutral, PublicKeyToken=1488e028ca7ab535' or one of its dependencies. The located assembly's manifest definition does not match the assembly reference. (Exception from HRESULT: 0x80131040)]]></message>
+                  <stack-trace><![CDATA[   at SQLitePCL.Batteries_V2.Init()
+   at EspGisViewer.DiffTests.Tests.CoverageTests.<SetUp>d__3.MoveNext() in c:\Users\tyreece.rozycki\Documents\GitHub\ESP\esp-gis-server\EspGisViewer.DiffTests\src\Tests\CoverageTests.cs:line 27
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at NUnit.Framework.Internal.AsyncInvocationRegion.AsyncTaskInvocationRegion.WaitForPendingOperationsToComplete(Object invocationResult)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunAsyncMethod(MethodInfo method, TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownItem.RunSetUp(TestExecutionContext context)
+   at NUnit.Framework.Internal.Commands.SetUpTearDownCommand.Execute(TestExecutionContext context)]]></stack-trace>
+                </failure>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
