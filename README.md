@@ -93,6 +93,8 @@ The [`feature_output_formats` GeoPackage extension](docs/geopackage-feature-outp
 
 For example, a JSON value can use the `native` formatter for GeoJSON and the `delimited` formatter for XML. The latter accepts a `separator` option for its human-readable representation.
 
+The `plans` WFS feature includes a `floorLevels` JSON object mapping each original plan name to its generated ordinal level or category value. For example, `"Level 5 - Suite 2": "5"`. In GeoJSON this is returned as an object; in XML it is returned as JSON text.
+
 ## Configuration
 
 Configuration is managed through the `web.config` file in the `EspGisViewer` project.

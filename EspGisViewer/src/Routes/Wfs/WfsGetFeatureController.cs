@@ -38,6 +38,9 @@ namespace EspGisViewer.Routes.Wfs
         [SQLite.Column("floors")]
         public string Floors { get; set; }
 
+        [SQLite.Column("floorLevels")]
+        public string FloorLevels { get; set; }
+
         [SQLite.Column("campusAddress")]
         public string CampusAddress { get; set; }
 
