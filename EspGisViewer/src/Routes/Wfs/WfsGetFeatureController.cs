@@ -132,12 +132,26 @@ namespace EspGisViewer.Routes.Wfs
     public class WfsGetFeatureController
     {
         private const int MinRealestateZoom = 20;
+        private const int MaxFeatureCount = 1000;
         private const string AllFeaturesTableName = "all_features";
         private const string FeatureOutputFormatsTableName = "feature_output_formats";
+        private static readonly KeyValuePair<PropertyInfo, string>[] FeatureProperties = typeof(FeatureRow).GetProperties()
+            .Select(property => new KeyValuePair<PropertyInfo, string>(property, GetColumnName(property)))
+            .Where(property => property.Key.Name != nameof(FeatureRow.Id) && !IsExcludedCodeColumn(property.Value))
+            .ToArray();
+        private static readonly JsonSerializerSettings GeoJsonSettings = new JsonSerializerSettings
+        {
+            ContractResolver = new DefaultContractResolver
+            {
+                NamingStrategy = new CamelCaseNamingStrategy()
+            },
+            Formatting = Formatting.None
+        };
         private readonly DataSource _dataSource;
         private readonly string _allowedType;
-        private readonly object _columnNamesLock = new object();
-        private Task<HashSet<string>> _columnNamesTask;
+        private readonly object _metadataLock = new object();
+        private readonly Dictionary<string, Task<FeatureMetadata>> _metadataTasks = new Dictionary<string, Task<FeatureMetadata>>(StringComparer.OrdinalIgnoreCase);
+        private DataConnection _metadataConnection;
 
         public WfsGetFeatureController(DataSource dataSource, string allowedType)
         {
@@ -159,7 +173,7 @@ namespace EspGisViewer.Routes.Wfs
             var typeNames = parsed.TypeNames;
             var bbox = parsed.Bbox;
             var outputFormat = parsed.OutputFormat;
-            var count = parsed.Count;
+            var count = Math.Min(parsed.Count ?? MaxFeatureCount, MaxFeatureCount);
             var zoom = parsed.Zoom;
             var srsName = parsed.SrsName;
             var featureId = parsed.FeatureId;
@@ -201,8 +215,13 @@ namespace EspGisViewer.Routes.Wfs
             }
 
             var querySource = GetQuerySource();
+            var connection = _dataSource.TilesAndFeatures;
+            var responseOutputFormat = string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase)
+                ? "geojson"
+                : "xml";
+            var metadata = await GetMetadata(connection, querySource.TableName, responseOutputFormat);
 
-            if (!await TableExists(querySource.TableName))
+            if (!metadata.TableExists)
             {
                 context.Response.ContentType = "application/json";
                 context.Response.StatusCode = 200;
@@ -210,11 +229,8 @@ namespace EspGisViewer.Routes.Wfs
                 return;
             }
 
-            var columnNames = await GetColumnNames(querySource.TableName);
-            var responseOutputFormat = string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase)
-                ? "geojson"
-                : "xml";
-            var featureOutputFormats = await LoadFeatureOutputFormats(responseOutputFormat);
+            var columnNames = metadata.ColumnNames;
+            var featureOutputFormats = metadata.OutputFormats;
             var queryBbox = GetQueryBbox(bbox, srsName, querySource.UseIndexedMercatorBbox);
             var bboxPredicate = BuildBboxPredicate(queryBbox, srsName, columnNames, querySource.UseIndexedMercatorBbox);
             var queryArgs = new List<object>();
@@ -235,13 +251,10 @@ namespace EspGisViewer.Routes.Wfs
             }
 
             var countQueryArgs = queryArgs.ToArray();
-            if (count != null)
-            {
-                queryArgs.Add(count.Value);
-            }
+            queryArgs.Add(count);
 
             var idPredicate = featureId != null ? "AND id = ?" : string.Empty;
-            var limitClause = count != null ? "LIMIT ?" : string.Empty;
+            var limitClause = "LIMIT ?";
             var quotedTable = QuoteIdentifier(querySource.TableName);
             var featuresetPredicate = querySource.FeaturesetFilter != null ? "AND featureset = ?" : string.Empty;
 
@@ -255,10 +268,10 @@ namespace EspGisViewer.Routes.Wfs
                 {limitClause}
             ";
 
-            var features = await _dataSource.TilesAndFeatures.QueryAsync<FeatureRow>(sql, queryArgs.ToArray());
+            var features = await connection.QueryAsync<FeatureRow>(sql, queryArgs.ToArray());
             var numberMatched = features.Count;
 
-            if (count != null && !string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
             {
                 var countSql = $@"
                     SELECT COUNT(*) AS totalCount
@@ -269,7 +282,7 @@ namespace EspGisViewer.Routes.Wfs
                     {bboxPredicate}
                 ";
 
-                var totalCountResult = await _dataSource.TilesAndFeatures.QueryAsync<FeatureCount>(countSql, countQueryArgs);
+                var totalCountResult = await connection.QueryAsync<FeatureCount>(countSql, countQueryArgs);
                 if (totalCountResult.Count > 0)
                 {
                     numberMatched = totalCountResult[0].TotalCount;
@@ -285,42 +298,69 @@ namespace EspGisViewer.Routes.Wfs
             WriteXml(context, parameters, featureName, srsName, columnNames, featureOutputFormats, features, numberMatched);
         }
 
-        private async Task<bool> TableExists(string tableName)
+        private async Task<bool> TableExists(DataConnection connection, string tableName)
         {
             var safeTableName = tableName.Replace("'", "''");
-            var tablePresence = await _dataSource.TilesAndFeatures.QueryAsync<TablePresence>(
+            var tablePresence = await connection.QueryAsync<TablePresence>(
                 $"SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type = 'table' AND name = '{safeTableName}'");
             return tablePresence.Count > 0 && tablePresence[0].TableCount > 0;
         }
 
-        private Task<HashSet<string>> GetColumnNames(string tableName)
+        private Task<FeatureMetadata> GetMetadata(DataConnection connection, string tableName, string outputFormat)
         {
-            lock (_columnNamesLock)
+            lock (_metadataLock)
             {
-                if (_columnNamesTask == null)
+                if (!ReferenceEquals(_metadataConnection, connection))
                 {
-                    _columnNamesTask = LoadColumnNames(tableName);
+                    _metadataConnection = connection;
+                    _metadataTasks.Clear();
                 }
 
-                return _columnNamesTask;
+                if (!_metadataTasks.TryGetValue(outputFormat, out var task) || task.IsFaulted || task.IsCanceled)
+                {
+                    task = LoadMetadata(connection, tableName, outputFormat);
+                    _metadataTasks[outputFormat] = task;
+                }
+                return task;
             }
         }
 
-        private async Task<HashSet<string>> LoadColumnNames(string tableName)
+        private async Task<FeatureMetadata> LoadMetadata(DataConnection connection, string tableName, string outputFormat)
+        {
+            if (!await TableExists(connection, tableName))
+            {
+                return new FeatureMetadata();
+            }
+            return new FeatureMetadata
+            {
+                TableExists = true,
+                ColumnNames = await LoadColumnNames(connection, tableName),
+                OutputFormats = await LoadFeatureOutputFormats(connection, outputFormat)
+            };
+        }
+
+        private class FeatureMetadata
+        {
+            public bool TableExists { get; set; }
+            public HashSet<string> ColumnNames { get; set; }
+            public Dictionary<string, FeatureOutputFormatRow> OutputFormats { get; set; }
+        }
+
+        private async Task<HashSet<string>> LoadColumnNames(DataConnection connection, string tableName)
         {
             var quotedTable = QuoteIdentifier(tableName);
-            var columnRows = await _dataSource.TilesAndFeatures.QueryAsync<Column>($"PRAGMA table_info({quotedTable})");
+            var columnRows = await connection.QueryAsync<Column>($"PRAGMA table_info({quotedTable})");
             return new HashSet<string>(columnRows.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
         }
 
-        private async Task<Dictionary<string, FeatureOutputFormatRow>> LoadFeatureOutputFormats(string outputFormat)
+        private async Task<Dictionary<string, FeatureOutputFormatRow>> LoadFeatureOutputFormats(DataConnection connection, string outputFormat)
         {
-            if (!await TableExists(FeatureOutputFormatsTableName))
+            if (!await TableExists(connection, FeatureOutputFormatsTableName))
             {
                 return new Dictionary<string, FeatureOutputFormatRow>(StringComparer.OrdinalIgnoreCase);
             }
 
-            var rows = await _dataSource.TilesAndFeatures.QueryAsync<FeatureOutputFormatRow>(/* sql */ @"
+            var rows = await connection.QueryAsync<FeatureOutputFormatRow>(/* sql */ @"
                 SELECT column_name, source_format, formatter, options
                 FROM feature_output_formats
                                 WHERE table_name = ?
@@ -422,22 +462,16 @@ namespace EspGisViewer.Routes.Wfs
             var obj = new Dictionary<string, object>
             {
                 ["type"] = "FeatureCollection",
-                ["features"] = features.Select(feature => BuildGeoJsonFeature(serverRoot, srsName, columnNames, featureOutputFormats, feature)).ToList()
+                ["features"] = features.Select(feature => BuildGeoJsonFeature(serverRoot, srsName, columnNames, featureOutputFormats, feature))
             };
 
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = 200;
 
-            var settings = new JsonSerializerSettings
+            using (var writer = new JsonTextWriter(context.Response.Output) { CloseOutput = false })
             {
-                ContractResolver = new DefaultContractResolver
-                {
-                    NamingStrategy = new CamelCaseNamingStrategy()
-                },
-                Formatting = Formatting.None
-            };
-
-            context.Response.Write(JsonConvert.SerializeObject(obj, settings));
+                JsonSerializer.Create(GeoJsonSettings).Serialize(writer, obj);
+            }
         }
 
         private Dictionary<string, object> BuildGeoJsonFeature(string serverRoot, string srsName, HashSet<string> columnNames, Dictionary<string, FeatureOutputFormatRow> featureOutputFormats, FeatureRow feature)
@@ -589,22 +623,15 @@ namespace EspGisViewer.Routes.Wfs
 
         private static IEnumerable<KeyValuePair<string, object>> GetFeatureProperties(FeatureRow feature)
         {
-            foreach (var property in typeof(FeatureRow).GetProperties())
+            foreach (var property in FeatureProperties)
             {
-                var columnName = GetColumnName(property);
-                if (property.Name == nameof(FeatureRow.Id)
-                    || IsExcludedCodeColumn(columnName))
-                {
-                    continue;
-                }
-
-                var value = property.GetValue(feature);
+                var value = property.Key.GetValue(feature);
                 if (value == null || value is byte[])
                 {
                     continue;
                 }
 
-                yield return new KeyValuePair<string, object>(columnName, value);
+                yield return new KeyValuePair<string, object>(property.Value, value);
             }
         }
 

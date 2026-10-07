@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 namespace EspGisViewer.Routing
 {
-    class DelegateRouter : IRouter, IHttpAsyncHandler
+    class DelegateRouter : HttpTaskAsyncHandler, IRouter
     {
 
         private Router _currentRouter = new Router();
@@ -48,48 +47,33 @@ namespace EspGisViewer.Routing
             return onFinish;
         }
 
-        public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
+        public override async Task ProcessRequestAsync(HttpContext context)
         {
-            return Task.Run(async () =>
+            var parameters = new Dictionary<string, string>();
+            var path = GetApplicationRelativePath(context.Request);
+
+            try
             {
-                var parameters = new Dictionary<string, string>();
-                var path = GetApplicationRelativePath(context.Request);
-
-                try
+                if (await _currentRouter.TryRoute(context, path, parameters))
                 {
-                    if (await _currentRouter.TryRoute(context, path, parameters))
-                    {
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Log the exception
-                    Console.WriteLine(ex);
-                    context.Response.StatusCode = 500;
-                    context.Response.ContentType = "text/plain";
-
-                    context.Response.Write("Internal Server Error");
                     return;
                 }
-
-                // 404
-                context.Response.StatusCode = 404;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                context.Response.StatusCode = 500;
                 context.Response.ContentType = "text/plain";
+                context.Response.Write("Internal Server Error");
+                return;
+            }
 
-                context.Response.Write("Not Found");
-            }).ContinueWith(task => cb(task));
+            context.Response.StatusCode = 404;
+            context.Response.ContentType = "text/plain";
+            context.Response.Write("Not Found");
         }
 
-        public void EndProcessRequest(IAsyncResult result)
-        {
-        }
-
-        public void ProcessRequest(HttpContext context)
-        {
-        }
-
-        public bool IsReusable
+        public override bool IsReusable
         {
             get => true;
         }
