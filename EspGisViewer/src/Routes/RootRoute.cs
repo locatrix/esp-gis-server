@@ -11,10 +11,10 @@ using EspGisViewer.Routing;
 using EspGisViewer.Util;
 namespace EspGisViewer.Routes
 {
-    public class RootRoute : IHttpAsyncHandler
+    public class RootRoute : HttpTaskAsyncHandler
     {
 
-        private static readonly IHttpAsyncHandler Router = Routers.Create(router =>
+        private static readonly HttpTaskAsyncHandler Router = Routers.Create(router =>
             {
                 DataSource dataSource = DataSource.GetDataSource();
 
@@ -59,7 +59,7 @@ namespace EspGisViewer.Routes
             })
             ;
 
-        public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
+        public override async Task ProcessRequestAsync(HttpContext context)
         {
             var path = (context.Request.Path ?? string.Empty);
 
@@ -67,41 +67,25 @@ namespace EspGisViewer.Routes
             if ((context.Request.Url + context.Request.Path) == (context.Request.Url + "/favicon.ico"))
             {
                 context.Response.AddHeader("Access-Control-Allow-Origin", "*");
-                return Router.BeginProcessRequest(context, cb, extraData);
+                await Router.ProcessRequestAsync(context);
+                return;
             }
 
             // Check if the access token is valid
             if (!Authentication.CheckToken(path))
             {
                 context.Response.StatusCode = 401;
-                try
-                {
-                    return Task.CompletedTask;
-                }
-                finally
-                {
-                    cb(Task.CompletedTask);
-                }
+                return;
             }
 
             // allow CORS for all origins
             context.Response.AddHeader("Access-Control-Allow-Origin", "*");
 
             // Dispatch to the router
-            return Router.BeginProcessRequest(context, cb, extraData);
+            await Router.ProcessRequestAsync(context);
         }
 
-        public void EndProcessRequest(IAsyncResult result)
-        {
-            // Dispatch to the router
-            Router.EndProcessRequest(result);
-        }
-
-        public void ProcessRequest(HttpContext context)
-        {
-        }
-
-        public bool IsReusable
+        public override bool IsReusable
         {
             get => true;
         }

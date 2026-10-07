@@ -49,6 +49,7 @@
         <Compile Include="src\Tests\Auto\AutoWfsTests.cs" />
         <Compile Include="src\Tests\CoverageTests.cs" />
         <Compile Include="src\Tests\DiffTests.cs" />
+        <Compile Include="src\Tests\TaskQueueTests.cs" />
         <Compile Include="src\Tests\WfsTests.cs" />
         <Compile Include="src\Tests\WmtsTests.cs" />
     </ItemGroup>

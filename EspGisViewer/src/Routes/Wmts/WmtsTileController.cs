@@ -39,6 +39,8 @@ namespace EspGisViewer.Routes.Wmts
 
     public class WmtsTileController
     {
+        private static readonly Regex NameRegex = new Regex("^[a-zA-Z0-9_.-]+$");
+        private static readonly Regex NumberRegex = new Regex("^[0-9]+$");
         private readonly DataSource _dataSource;
         private readonly DataConnection _dataConnection;
 
@@ -70,14 +72,11 @@ namespace EspGisViewer.Routes.Wmts
             tileRow = tileRow.Substring(0, tileRow.Length - ".png".Length);
 
             // sanitize all parameters
-            var nameRegex = new Regex("^[a-zA-Z0-9_.-]+$");
-            var numberRegex = new Regex("^[0-9]+$");
-
             if (
-                !nameRegex.IsMatch(layer) ||
-                !numberRegex.IsMatch(tileZoom) ||
-                !numberRegex.IsMatch(tileCol) ||
-                !numberRegex.IsMatch(tileRow))
+                !NameRegex.IsMatch(layer) ||
+                !NumberRegex.IsMatch(tileZoom) ||
+                !NumberRegex.IsMatch(tileCol) ||
+                !NumberRegex.IsMatch(tileRow))
             {
                 context.Response.StatusCode = 400;
                 context.Response.ContentType = "text/plain";
@@ -86,7 +85,7 @@ namespace EspGisViewer.Routes.Wmts
                 return;
             }
 
-            var rows = await _dataConnection.QueryAsync<Tile>($@"SELECT *
+            var rows = await _dataConnection.QueryAsync<TileData>($@"SELECT tile_data
                   FROM all_tiles
                   WHERE tileset = '{layer}'
                   AND zoom_level = {tileZoom}
@@ -95,7 +94,7 @@ namespace EspGisViewer.Routes.Wmts
 
             if (rows.Count > 0)
             {
-                var overlappedImages = Images.OverlapImages(rows.ConvertAll(tile => tile.TileData));
+                var overlappedImages = Images.OverlapImages(rows.ConvertAll(tile => tile.Data));
                 context.Response.StatusCode = 200;
                 context.Response.ContentType = "image/png";
                 context.Response.BinaryWrite(overlappedImages);

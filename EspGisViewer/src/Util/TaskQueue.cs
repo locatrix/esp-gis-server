@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 namespace EspGisViewer.Util
 {
@@ -6,12 +7,11 @@ namespace EspGisViewer.Util
     {
 
         private T _value;
-        private Task _currentTask;
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
         public TaskQueue(T initialValue)
         {
             _value  = initialValue;
-            _currentTask = Task.CompletedTask;
         }
 
         /// <summary>
@@ -25,14 +25,15 @@ namespace EspGisViewer.Util
         /// <returns>A task that resolves once the function has been called.</returns>
         public async Task<TR> Request<TR>(Action<T, Task<TR>> func)
         {
-            var result = default(TR);
-            _currentTask = await _currentTask.ContinueWith(async (t) =>
+            await _semaphore.WaitAsync();
+            try
             {
-                result = await func(_value);
-            });
-
-            await _currentTask;
-            return result;
+                return await func(_value);
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
     }

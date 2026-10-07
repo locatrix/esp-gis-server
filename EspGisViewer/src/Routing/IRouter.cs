@@ -34,7 +34,7 @@ namespace EspGisViewer.Routing
         /// Creates a root router.
         /// </summary>
         /// <returns>A new IRouter instance</returns>
-        public static IHttpAsyncHandler Create(RouterBuilder router)
+        public static HttpTaskAsyncHandler Create(RouterBuilder router)
         {
             var delegateRouter = new DelegateRouter();
             router(delegateRouter);
