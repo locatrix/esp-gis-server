@@ -18,3 +18,11 @@ not run the frontend tests.
 This hook does not change .NET test discovery. The legacy project currently
 lacks CLI test-project/adapter configuration, so `dotnet test` skips the .NET
 tests themselves; use the Visual Studio test runner described above for those.
+
+## Release regression gates
+
+CI uses NUnit ConsoleRunner 3.18.3 to execute `CoverageTests`, `TaskQueueTests`
+and `StabilityTests` against a Release build. Generated assembly binding redirects
+are required for the SQLite dependency. These suites need no running web servers.
+The WFS/WMTS comparison suites still require both servers described above; they
+must not be reported as passed when those servers are unavailable.

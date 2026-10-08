@@ -80,7 +80,9 @@ namespace EspGisViewer.Routing
 
         private static string GetApplicationRelativePath(HttpRequest request)
         {
-            var path = request.AppRelativeCurrentExecutionFilePath;
+            var path = HttpRuntime.AppDomainAppVirtualPath == null
+                ? null
+                : request.AppRelativeCurrentExecutionFilePath;
 
             if (!string.IsNullOrEmpty(path))
             {
