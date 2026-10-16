@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Util;
@@ -51,9 +50,9 @@ namespace EspGisViewer.Routes.Wmts
         }
 
         // /wmts/{tiles}/{tileZoom}/{tileCol}/{tileRow}.png
-        public async Task HandleTile(HttpContext context, Dictionary<string, string> parameters)
+        public void HandleTile(HttpContext context, Dictionary<string, string> parameters)
         {
-            await _dataSource.Refresh(false);
+            _dataSource.Refresh(false);
 
             var layer = parameters["tiles"];
             var tileZoom = parameters["tileZoom"];
@@ -85,8 +84,8 @@ namespace EspGisViewer.Routes.Wmts
                 return;
             }
 
-            var rows = await _dataConnection.QueryAsync<TileData>($@"SELECT tile_data
-                  FROM all_tiles
+            var rows = _dataConnection.Query<TileData>($@"SELECT tile_data
+                FROM all_tiles INDEXED BY idx_all_tiles_coordinate
                   WHERE tileset = '{layer}'
                   AND zoom_level = {tileZoom}
                   AND tile_column = {tileCol}

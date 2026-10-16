@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Util;
 
@@ -14,7 +13,7 @@ namespace EspGisViewer.Routes.Viewer
         {
         }
 
-        public Task Handle(HttpContext context, Dictionary<string, string> parameters)
+        public void Handle(HttpContext context, Dictionary<string, string> parameters)
         {
 
             string filePath = context.Request.Path;
@@ -51,14 +50,13 @@ namespace EspGisViewer.Routes.Viewer
             if (paths.Any(path => TryPath(context, path, token)))
             {
                 context.Response.StatusCode = 200;
-                return Task.CompletedTask;
+                return;
             }
 
             context.Response.StatusCode = 500;
             context.Response.ContentType = "text/plain";
             context.Response.Write($"Not Found: {context.Request.Path}");
 
-            return Task.CompletedTask;
         }
 
         // token may be null. When serving HTML, we inject token into asset URLs

@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Runtime.Caching;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Util;
@@ -21,7 +18,6 @@ namespace EspGisViewer.Routes.Realestate
         private const int RequestTimeoutMs = 20000;
         private static readonly TimeSpan FloorplanHitCacheDuration = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan FloorplanMissCacheDuration = TimeSpan.FromMinutes(10);
-        private const string FloorplanFetcherScriptRelativePath = @"scripts\fetch-domain-floorplan.mjs";
         private const string FloorplanCacheKeyPrefix = "realestate-floorplan:";
         private const string DomainLinkColumnName = "domainLink";
         private static readonly ObjectCache FloorplanCache = MemoryCache.Default;
@@ -57,7 +53,7 @@ namespace EspGisViewer.Routes.Realestate
             public string DomainLink { get; set; }
         }
 
-        public async Task Handle(HttpContext context, Dictionary<string, string> parameters)
+        public void Handle(HttpContext context, Dictionary<string, string> parameters)
         {
             if (!int.TryParse(parameters.GetValue("featureId"), out var featureId))
             {
@@ -67,9 +63,9 @@ namespace EspGisViewer.Routes.Realestate
                 return;
             }
 
-            await _dataSource.Refresh(false);
+            _dataSource.Refresh(false);
 
-            if (!await HasAllFeaturesColumn(DomainLinkColumnName))
+            if (!HasAllFeaturesColumn(DomainLinkColumnName))
             {
                 context.Response.StatusCode = 404;
                 context.Response.ContentType = "text/plain";
@@ -77,7 +73,7 @@ namespace EspGisViewer.Routes.Realestate
                 return;
             }
 
-            var records = await _dataSource.TilesAndFeatures.QueryAsync<FloorplanLookup>(/* sql */ @"
+            var records = _dataSource.TilesAndFeatures.Query<FloorplanLookup>(/* sql */ @"
                 SELECT domainLink
                 FROM all_features
                 WHERE featureset = ? AND id = ?
@@ -96,7 +92,7 @@ namespace EspGisViewer.Routes.Realestate
             FloorplanResult floorplanResult;
             try
             {
-                floorplanResult = await GetCachedFloorplanResult(domainLink);
+                floorplanResult = GetCachedFloorplanResult(domainLink);
                 if (!string.IsNullOrWhiteSpace(floorplanResult.Error))
                 {
                     context.Response.StatusCode = floorplanResult.StatusCode == 404 ? 404 : 502;
@@ -133,7 +129,7 @@ namespace EspGisViewer.Routes.Realestate
             context.Response.Write(floorplanResult.Urls[0]);
         }
 
-        private static async Task<FloorplanResult> GetCachedFloorplanResult(string domainUrl)
+        private static FloorplanResult GetCachedFloorplanResult(string domainUrl)
         {
             var cacheKey = BuildFloorplanCacheKey(domainUrl);
             var cachedValue = FloorplanCache.Get(cacheKey) as FloorplanResult;
@@ -142,7 +138,7 @@ namespace EspGisViewer.Routes.Realestate
                 return cachedValue;
             }
 
-            var floorplanResult = await FetchDomainFloorplans(domainUrl);
+            var floorplanResult = FetchDomainFloorplans(domainUrl);
             if (!string.IsNullOrWhiteSpace(floorplanResult.Error) && floorplanResult.StatusCode != 404)
             {
                 return floorplanResult;
@@ -165,7 +161,7 @@ namespace EspGisViewer.Routes.Realestate
             return FloorplanCacheKeyPrefix + domainUrl.Trim();
         }
 
-        private async Task<bool> HasAllFeaturesColumn(string columnName)
+        private bool HasAllFeaturesColumn(string columnName)
         {
             lock (AllFeaturesSchemaLock)
             {
@@ -175,7 +171,7 @@ namespace EspGisViewer.Routes.Realestate
                 }
             }
 
-            var columns = await _dataSource.TilesAndFeatures.QueryAsync<AllFeaturesColumn>("PRAGMA table_info(all_features);");
+            var columns = _dataSource.TilesAndFeatures.Query<AllFeaturesColumn>("PRAGMA table_info(all_features);");
             var hasColumn = false;
             foreach (var column in columns)
             {
@@ -194,75 +190,43 @@ namespace EspGisViewer.Routes.Realestate
             return hasColumn;
         }
 
-        private static async Task<FloorplanResult> FetchDomainFloorplans(string domainUrl)
+        private static FloorplanResult FetchDomainFloorplans(string domainUrl)
         {
-            var appBasePath = AppDomain.CurrentDomain.BaseDirectory;
-            var scriptPath = Path.Combine(appBasePath, FloorplanFetcherScriptRelativePath);
-            if (!File.Exists(scriptPath))
+            var request = (HttpWebRequest)WebRequest.Create(domainUrl);
+            request.Timeout = RequestTimeoutMs;
+            request.ReadWriteTimeout = RequestTimeoutMs;
+            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            request.Headers[HttpRequestHeader.AcceptLanguage] = "en-AU,en;q=0.9";
+            request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
+
+            try
             {
-                throw new FileNotFoundException($"Floorplan fetcher script not found: {scriptPath}");
+                using (var response = (HttpWebResponse)request.GetResponse())
+                using (var reader = new StreamReader(response.GetResponseStream()))
+                {
+                    return new FloorplanResult
+                    {
+                        StatusCode = (int)response.StatusCode,
+                        Urls = ExtractFloorplanUrls(ParseNextDataPayload(reader.ReadToEnd()))
+                    };
+                }
             }
-
-            var psi = new ProcessStartInfo
+            catch (WebException ex)
             {
-                FileName = "node",
-                Arguments = $"\"{scriptPath}\" \"{domainUrl}\"",
-                WorkingDirectory = appBasePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-            };
-
-            using (var process = Process.Start(psi))
+                using (var response = ex.Response as HttpWebResponse)
+                {
+                    return new FloorplanResult
+                    {
+                        StatusCode = response == null ? (int?)null : (int)response.StatusCode,
+                        Error = response == null
+                            ? ex.Message
+                            : $"request failed with status {(int)response.StatusCode}"
+                    };
+                }
+            }
+            catch (Exception ex)
             {
-                if (process == null)
-                {
-                    throw new InvalidOperationException("Failed to start the floorplan fetcher process.");
-                }
-
-                var stdoutTask = process.StandardOutput.ReadToEndAsync();
-                var stderrTask = process.StandardError.ReadToEndAsync();
-                var didExit = await Task.Run(() => process.WaitForExit(RequestTimeoutMs));
-
-                if (!didExit)
-                {
-                    try
-                    {
-                        process.Kill();
-                    }
-                    catch
-                    {
-                    }
-
-                    throw new TimeoutException("Timed out while fetching Domain floorplans.");
-                }
-
-                var stdout = await stdoutTask;
-                var stderr = await stderrTask;
-
-                if (process.ExitCode != 0)
-                {
-                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(stderr)
-                        ? $"Floorplan fetcher exited with code {process.ExitCode}."
-                        : stderr.Trim());
-                }
-
-                var payload = stdout.Trim();
-                if (payload.Length == 0)
-                {
-                    throw new InvalidOperationException("Floorplan fetcher returned an empty response.");
-                }
-
-                var parsed = JObject.Parse(payload);
-                return new FloorplanResult
-                {
-                    Error = parsed.Value<string>("error"),
-                    StatusCode = parsed.Value<int?>("statusCode"),
-                    Urls = parsed["urls"]?.ToObject<List<string>>() ?? new List<string>()
-                };
+                return new FloorplanResult { Error = ex.Message };
             }
         }
 

@@ -1,13 +1,11 @@
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 namespace EspGisViewer.Util
 {
     public class TaskQueue<T>
     {
 
         private T _value;
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private readonly object _sync = new object();
 
         public TaskQueue(T initialValue)
         {
@@ -16,23 +14,16 @@ namespace EspGisViewer.Util
 
         /// <summary>
         /// Requests the queue's value, with the value being passed to the provided
-        /// `func` callback. The callback must return a task that resolves to the
-        /// queue's value, signalling that it is safe for the value to be used by
-        /// other requests.
+        /// `func` callback. The value is held exclusively until the callback returns.
         /// </summary>
         ///
         /// <param name="func">The function to execute.</param>
-        /// <returns>A task that resolves once the function has been called.</returns>
-        public async Task<TR> Request<TR>(Action<T, Task<TR>> func)
+        /// <returns>The callback's result.</returns>
+        public TR Request<TR>(Func<T, TR> func)
         {
-            await _semaphore.WaitAsync();
-            try
+            lock (_sync)
             {
-                return await func(_value);
-            }
-            finally
-            {
-                _semaphore.Release();
+                return func(_value);
             }
         }
 

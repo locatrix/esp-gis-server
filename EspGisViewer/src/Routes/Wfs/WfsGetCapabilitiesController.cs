@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Util;
@@ -24,11 +23,11 @@ namespace EspGisViewer.Routes.Wfs
           _allowedType = allowedType;
         }
 
-        public async Task HandleRequest(HttpContext context, Dictionary<string, string> parameters)
+        public void HandleRequest(HttpContext context, Dictionary<string, string> parameters)
         {
-            await _dataSource.Refresh(true);
+            _dataSource.Refresh(true);
 
-            var featureData = await _dataSource.TilesAndFeatures.QueryAsync<FeatureData>(@"
+            var featureData = _dataSource.TilesAndFeatures.Query<FeatureData>(@"
                 SELECT DISTINCT featureset AS name
                 FROM all_features
             ");

@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using EspGisViewer.Util;
 using NUnit.Framework;
@@ -8,35 +9,44 @@ namespace EspGisViewer.DiffTests.Tests
     public class TaskQueueTests
     {
         [Test]
-        public async Task ConcurrentRequestsAreSerialized()
+        public void ConcurrentRequestsAreSerialized()
         {
             var queue = new TaskQueue<int>(42);
-            var firstRequestEntered = new TaskCompletionSource<bool>();
-            var releaseFirstRequest = new TaskCompletionSource<bool>();
-            var secondRequestEntered = new TaskCompletionSource<bool>();
-
-            var firstRequest = queue.Request(async value =>
+            using (var firstRequestEntered = new ManualResetEventSlim())
+            using (var releaseFirstRequest = new ManualResetEventSlim())
+            using (var secondRequestAttempted = new ManualResetEventSlim())
+            using (var secondRequestEntered = new ManualResetEventSlim())
             {
-                firstRequestEntered.TrySetResult(true);
-                await releaseFirstRequest.Task;
-                return value;
-            });
-
-            await firstRequestEntered.Task;
-
-            var secondRequest = queue.Request(value =>
-            {
-                secondRequestEntered.TrySetResult(true);
-                return Task.FromResult(value);
-            });
-
-            var completedTask = await Task.WhenAny(secondRequestEntered.Task, Task.Delay(1000));
-            var secondStartedBeforeFirstCompleted = completedTask == secondRequestEntered.Task;
-
-            releaseFirstRequest.TrySetResult(true);
-            await Task.WhenAll(firstRequest, secondRequest);
-
-            Assert.IsFalse(secondStartedBeforeFirstCompleted, "The second request entered while the first request still held the queue.");
+                var firstRequest = Task.Run(() => queue.Request(value =>
+                {
+                    firstRequestEntered.Set();
+                    Assert.IsTrue(releaseFirstRequest.Wait(5000));
+                    return value;
+                }));
+                Task<int> secondRequest = null;
+                try
+                {
+                    Assert.IsTrue(firstRequestEntered.Wait(5000));
+                    secondRequest = Task.Run(() =>
+                    {
+                        secondRequestAttempted.Set();
+                        return queue.Request(value =>
+                        {
+                            secondRequestEntered.Set();
+                            return value;
+                        });
+                    });
+                    Assert.IsTrue(secondRequestAttempted.Wait(5000));
+                    Assert.IsFalse(secondRequestEntered.Wait(1000), "The second request entered while the first request still held the queue.");
+                }
+                finally
+                {
+                    releaseFirstRequest.Set();
+                    Assert.IsTrue(firstRequest.Wait(5000));
+                    if (secondRequest != null) Assert.IsTrue(secondRequest.Wait(5000));
+                }
+                Assert.AreEqual(42, secondRequest.Result);
+            }
         }
     }
 }

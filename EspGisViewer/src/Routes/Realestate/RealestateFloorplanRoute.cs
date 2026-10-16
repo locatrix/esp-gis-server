@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Routing;
@@ -23,9 +22,9 @@ namespace EspGisViewer.Routes.Realestate
             }
         }
 
-        private Task Handle(HttpContext context, Dictionary<string, string> parameters)
+        private void Handle(HttpContext context, Dictionary<string, string> parameters)
         {
-            return _controller.Handle(context, parameters);
+            _controller.Handle(context, parameters);
         }
 
         public static void Register(IRouter router, DataSource dataSource)

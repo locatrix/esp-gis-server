@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Routes.Coverage;
@@ -11,10 +10,10 @@ using EspGisViewer.Routing;
 using EspGisViewer.Util;
 namespace EspGisViewer.Routes
 {
-    public class RootRoute : HttpTaskAsyncHandler
+    public class RootRoute : IHttpHandler
     {
 
-        private static readonly HttpTaskAsyncHandler Router = Routers.Create(router =>
+        private static readonly IHttpHandler Router = Routers.Create(router =>
             {
                 DataSource dataSource = DataSource.GetDataSource();
 
@@ -51,7 +50,6 @@ namespace EspGisViewer.Routes
 
                         context.Response.BinaryWrite(Images.TransparentImage);
 
-                        return Task.CompletedTask;
                     });
                 }
 
@@ -59,7 +57,7 @@ namespace EspGisViewer.Routes
             })
             ;
 
-        public override async Task ProcessRequestAsync(HttpContext context)
+        public void ProcessRequest(HttpContext context)
         {
             var path = (context.Request.Path ?? string.Empty);
 
@@ -67,7 +65,7 @@ namespace EspGisViewer.Routes
             if ((context.Request.Url + context.Request.Path) == (context.Request.Url + "/favicon.ico"))
             {
                 context.Response.AddHeader("Access-Control-Allow-Origin", "*");
-                await Router.ProcessRequestAsync(context);
+                Router.ProcessRequest(context);
                 return;
             }
 
@@ -82,10 +80,10 @@ namespace EspGisViewer.Routes
             context.Response.AddHeader("Access-Control-Allow-Origin", "*");
 
             // Dispatch to the router
-            await Router.ProcessRequestAsync(context);
+            Router.ProcessRequest(context);
         }
 
-        public override bool IsReusable
+        public bool IsReusable
         {
             get => true;
         }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Util;
 
@@ -17,7 +16,7 @@ namespace EspGisViewer.Routes
         private static readonly string ApplicationVersion = GetApplicationVersion();
         private static readonly string BuildDate = GetBuildDate();
 
-        public static Task Handle(HttpContext context, Dictionary<string, string> parameters)
+        public static void Handle(HttpContext context, Dictionary<string, string> parameters)
         {
             context.Response.StatusCode = 200;
             context.Response.ContentType = "text/html";
@@ -40,7 +39,6 @@ namespace EspGisViewer.Routes
                 .Replace("__BUILD_DATE__", HttpUtility.HtmlEncode(BuildDate));
 
             context.Response.Write(html);
-            return Task.CompletedTask;
         }
 
         private static string LoadIndexTemplate()

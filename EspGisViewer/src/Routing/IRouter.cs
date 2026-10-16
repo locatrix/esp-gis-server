@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Web;
 namespace EspGisViewer.Routing
 {
@@ -34,7 +33,7 @@ namespace EspGisViewer.Routing
         /// Creates a root router.
         /// </summary>
         /// <returns>A new IRouter instance</returns>
-        public static HttpTaskAsyncHandler Create(RouterBuilder router)
+        public static IHttpHandler Create(RouterBuilder router)
         {
             var delegateRouter = new DelegateRouter();
             router(delegateRouter);
@@ -42,6 +41,6 @@ namespace EspGisViewer.Routing
         }
     }
 
-    public delegate Task RouteHandler(HttpContext context, Dictionary<string, string> parameters);
+    public delegate void RouteHandler(HttpContext context, Dictionary<string, string> parameters);
     public delegate void RouterBuilder(IRouter router);
 }

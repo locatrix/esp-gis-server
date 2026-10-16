@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Routes.Coverage;
@@ -17,49 +16,49 @@ namespace EspGisViewer.DiffTests.Tests
     // against an isolated SQLite fixture instead of comparing the two servers.
     public class CoverageTests
     {
-        private SQLiteAsyncConnection _database;
+        private SQLiteConnection _database;
         private string _databasePath;
         private CoverageController _controller;
 
         [SetUp]
-        public async Task SetUp()
+        public void SetUp()
         {
             SQLitePCL.Batteries_V2.Init();
             _databasePath = Path.GetTempFileName();
-            _database = new SQLiteAsyncConnection(_databasePath);
-            await _database.ExecuteAsync("CREATE TABLE all_tiles (tileset TEXT, zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER)");
-            await _database.ExecuteAsync("CREATE INDEX idx_all_tiles_coordinate ON all_tiles (zoom_level, tile_column, tile_row, tileset)");
-            await _database.ExecuteAsync("CREATE TABLE tileset_metadata (tileset TEXT, display_name TEXT, kind TEXT)");
-            await AddTile("category", "Buildings", "category", 4, 3, 5);
-            await AddTile("2", "Second floor", "level", 4, 5, 7);
-            await AddTile("10", "Tenth floor", "level", 4, 4, 6);
-            await AddTile("2", "Second floor", "level", 4, 4, 5);
-            await AddTile("west", "Outside west", "name", 4, 2, 5);
-            await AddTile("east", "Outside east", "name", 4, 6, 5);
-            await AddTile("north", "Outside north", "name", 4, 3, 4);
-            await AddTile("south", "Outside south", "name", 4, 3, 8);
-            await AddTile("other-zoom", "Other zoom", "name", 5, 3, 5);
+            _database = new SQLiteConnection(_databasePath);
+            _database.Execute("CREATE TABLE all_tiles (tileset TEXT, zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER)");
+            _database.Execute("CREATE INDEX idx_all_tiles_coordinate ON all_tiles (zoom_level, tile_column, tile_row, tileset)");
+            _database.Execute("CREATE TABLE tileset_metadata (tileset TEXT, display_name TEXT, kind TEXT)");
+            AddTile("category", "Buildings", "category", 4, 3, 5);
+            AddTile("2", "Second floor", "level", 4, 5, 7);
+            AddTile("10", "Tenth floor", "level", 4, 4, 6);
+            AddTile("2", "Second floor", "level", 4, 4, 5);
+            AddTile("west", "Outside west", "name", 4, 2, 5);
+            AddTile("east", "Outside east", "name", 4, 6, 5);
+            AddTile("north", "Outside north", "name", 4, 3, 4);
+            AddTile("south", "Outside south", "name", 4, 3, 8);
+            AddTile("other-zoom", "Other zoom", "name", 5, 3, 5);
             _controller = new CoverageController(new TestDataSource(_database));
         }
 
         [TearDown]
-        public async Task TearDown()
+        public void TearDown()
         {
-            if (_database != null) await _database.CloseAsync();
+            if (_database != null) _database.Close();
             if (_databasePath != null) File.Delete(_databasePath);
         }
 
-        private async Task AddTile(string value, string label, string kind, int zoom, int col, int row)
+        private void AddTile(string value, string label, string kind, int zoom, int col, int row)
         {
-            await _database.ExecuteAsync("INSERT INTO all_tiles VALUES (?, ?, ?, ?)", value, zoom, col, row);
-            await _database.ExecuteAsync("INSERT INTO tileset_metadata VALUES (?, ?, ?)", value, label, kind);
+            _database.Execute("INSERT INTO all_tiles VALUES (?, ?, ?, ?)", value, zoom, col, row);
+            _database.Execute("INSERT INTO tileset_metadata VALUES (?, ?, ?)", value, label, kind);
         }
 
-        private async Task<string> Request(string zoom, string minCol, string minRow, string maxCol, string maxRow, int expectedStatus = 200)
+        private string Request(string zoom, string minCol, string minRow, string maxCol, string maxRow, int expectedStatus = 200)
         {
             var writer = new StringWriter();
             var context = new HttpContext(new HttpRequest("", "http://localhost/coverage", ""), new HttpResponse(writer));
-            await _controller.HandleCoverage(context, new Dictionary<string, string>
+            _controller.HandleCoverage(context, new Dictionary<string, string>
             {
                 ["tileMatrix"] = zoom,
                 ["minTileCol"] = minCol,
@@ -73,27 +72,27 @@ namespace EspGisViewer.DiffTests.Tests
         }
 
         [Test]
-        public async Task IncludesEdgesAndInteriorAndDeduplicatesInLayerOrder()
+        public void IncludesEdgesAndInteriorAndDeduplicatesInLayerOrder()
         {
-            var layers = JArray.Parse(await Request("4", "3", "5", "5", "7"));
+            var layers = JArray.Parse(Request("4", "3", "5", "5", "7"));
             CollectionAssert.AreEqual(new[] { "category", "2", "10" }, layers.Select(layer => (string)layer["value"]));
             Assert.AreEqual("Second floor", (string)layers[1]["label"]);
             Assert.AreEqual("level", (string)layers[1]["kind"]);
         }
 
         [Test]
-        public async Task EqualBoundsQueryOneTile()
+        public void EqualBoundsQueryOneTile()
         {
-            var layers = JArray.Parse(await Request("4", "5", "7", "5", "7"));
+            var layers = JArray.Parse(Request("4", "5", "7", "5", "7"));
             Assert.AreEqual(1, layers.Count);
             Assert.AreEqual("2", (string)layers[0]["value"]);
         }
 
         [Test]
-        public async Task EmptyBoundsReturnEmptyArray()
+        public void EmptyBoundsReturnEmptyArray()
         {
-            Assert.AreEqual("[]", await Request("4", "0", "0", "1", "1"));
-            Assert.AreEqual("[]", await Request("0", "0", "0", "0", "0"));
+            Assert.AreEqual("[]", Request("4", "0", "0", "1", "1"));
+            Assert.AreEqual("[]", Request("0", "0", "0", "0", "0"));
         }
 
         [TestCase("4", "5", "5", "3", "7")]
@@ -107,26 +106,26 @@ namespace EspGisViewer.DiffTests.Tests
         [TestCase("abc", "0", "0", "0", "0")]
         [TestCase("4", "1.5", "0", "2", "2")]
         [TestCase("4", "0", "0", "2147483648", "2")]
-        public async Task InvalidBoundsReturnBadRequest(string zoom, string minCol, string minRow, string maxCol, string maxRow)
+        public void InvalidBoundsReturnBadRequest(string zoom, string minCol, string minRow, string maxCol, string maxRow)
         {
             // Invalid requests must be rejected without touching the data source.
             _controller = new CoverageController(null);
-            var error = JObject.Parse(await Request(zoom, minCol, minRow, maxCol, maxRow, 400));
+            var error = JObject.Parse(Request(zoom, minCol, minRow, maxCol, maxRow, 400));
             Assert.IsNotNull(error["error"]);
         }
 
         private sealed class TestDataSource : DataSource
         {
-            public TestDataSource(SQLiteAsyncConnection database) { TilesAndFeatures = new TestConnection(database); }
+            public TestDataSource(SQLiteConnection database) { TilesAndFeatures = new TestConnection(database); }
             public override DataConnection TilesAndFeatures { get; }
-            protected override Task CheckForNewData() => Task.CompletedTask;
+            protected override void CheckForNewData() { }
         }
 
         private sealed class TestConnection : DataConnection
         {
-            private readonly SQLiteAsyncConnection _database;
-            public TestConnection(SQLiteAsyncConnection database) { _database = database; }
-            public override Task<T> Use<T>(EspGisViewer.Util.Action<ISQLiteAsyncConnection, Task<T>> action) => action(_database);
+            private readonly SQLiteConnection _database;
+            public TestConnection(SQLiteConnection database) { _database = database; }
+            public override T Use<T>(Func<SQLiteConnection, T> action) => action(_database);
         }
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using SQLite;
 namespace EspGisViewer.Data
 {
@@ -36,7 +35,7 @@ namespace EspGisViewer.Data
         /// </summary>
         /// <param name="force">Whether to force a check for new data. If false,
         /// checks will occur based on CHECK_INTERVAL_SECONDS.</param>
-        public async Task Refresh(bool force)
+        public void Refresh(bool force)
         {
             var performRefresh = false;
 
@@ -64,7 +63,7 @@ namespace EspGisViewer.Data
 
             try
             {
-                await CheckForNewData();
+                CheckForNewData();
             }
             finally
             {
@@ -79,7 +78,7 @@ namespace EspGisViewer.Data
         /// To be implemented by subclasses. Called by <see cref="Refresh"/> to check for new
         /// data. This method is expected to perform its work synchronously in this .NET 2.0 context.
         /// </summary>
-        protected abstract Task CheckForNewData();
+        protected abstract void CheckForNewData();
 
         public abstract DataConnection TilesAndFeatures { get; }
     }
@@ -92,21 +91,21 @@ namespace EspGisViewer.Data
         /// <param name="action">Action to perform with the connection.</param>
         /// <typeparam name="T">Return type of the action.</typeparam>
         /// <returns>Result of the action.</returns>
-        public abstract Task<T> Use<T>(Util.Action<ISQLiteAsyncConnection, Task<T>> action);
+        public abstract T Use<T>(Func<SQLiteConnection, T> action);
 
         /// <summary>
         /// Use this data connection to perform an action without a return value.
         /// </summary>
         /// <param name="action">Action to perform with the connection.</param>
-        public Task Use(Util.Action<ISQLiteAsyncConnection, Task> action) => Use(async db => { await action(db); return true; });
-        public Task<List<T>> QueryAsync<T>(string sql, params object[] args) where T : new()
+        public void Use(Action<SQLiteConnection> action) => Use(db => { action(db); return true; });
+        public List<T> Query<T>(string sql, params object[] args) where T : new()
         {
             if (args == null || args.Length == 0)
             {
-                return Use(db => db.QueryAsync<T>(sql));
+                return Use(db => db.Query<T>(sql));
             }
 
-            return Use(db => db.QueryAsync<T>(sql, args));
+            return Use(db => db.Query<T>(sql, args));
         }
     }
 }

@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Web;
 namespace EspGisViewer.Routing
 {
-    class DelegateRouter : HttpTaskAsyncHandler, IRouter
+    class DelegateRouter : IHttpHandler, IRouter
     {
 
         private Router _currentRouter = new Router();
@@ -47,14 +46,14 @@ namespace EspGisViewer.Routing
             return onFinish;
         }
 
-        public override async Task ProcessRequestAsync(HttpContext context)
+        public void ProcessRequest(HttpContext context)
         {
             var parameters = new Dictionary<string, string>();
             var path = GetApplicationRelativePath(context.Request);
 
             try
             {
-                if (await _currentRouter.TryRoute(context, path, parameters))
+                if (_currentRouter.TryRoute(context, path, parameters))
                 {
                     return;
                 }
@@ -73,7 +72,7 @@ namespace EspGisViewer.Routing
             context.Response.Write("Not Found");
         }
 
-        public override bool IsReusable
+        public bool IsReusable
         {
             get => true;
         }

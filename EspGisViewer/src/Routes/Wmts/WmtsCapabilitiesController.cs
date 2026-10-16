@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Util;
@@ -28,11 +27,11 @@ namespace EspGisViewer.Routes.Wmts
             _dataSource = dataSource;
         }
 
-        public async Task HandleCapabilities(HttpContext context, Dictionary<string, string> parameters)
+        public void HandleCapabilities(HttpContext context, Dictionary<string, string> parameters)
         {
-            await _dataSource.Refresh(true);
+            _dataSource.Refresh(true);
 
-            var rows = await _dataSource.TilesAndFeatures.Use(db => db.QueryAsync<TileName>("" +
+            var rows = _dataSource.TilesAndFeatures.Use(db => db.Query<TileName>("" +
                                                                                  "SELECT DISTINCT t.tileset AS identifier, t.tileset AS table_name, m.display_name AS display_name " +
                                                                                  "FROM all_tiles t LEFT JOIN tileset_metadata m ON m.tileset = t.tileset"));
 

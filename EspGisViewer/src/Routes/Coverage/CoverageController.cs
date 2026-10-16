@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using Newtonsoft.Json;
@@ -51,7 +50,7 @@ namespace EspGisViewer.Routes.Coverage
         }
 
         // /coverage/{tileMatrix}/{minTileCol}/{minTileRow}/{maxTileCol}/{maxTileRow}
-        public async Task HandleCoverage(HttpContext context, Dictionary<string, string> parameters)
+        public void HandleCoverage(HttpContext context, Dictionary<string, string> parameters)
         {
             if (!TryParseCoordinate(parameters, "tileMatrix", out var tileMatrix) || tileMatrix > 30 ||
                 !TryParseCoordinate(parameters, "minTileCol", out var minTileCol) ||
@@ -71,13 +70,13 @@ namespace EspGisViewer.Routes.Coverage
                 return;
             }
 
-            await _dataSource.Refresh(false);
+            _dataSource.Refresh(false);
 
             List<LayerLevelRow> levels;
 
             try
             {
-                levels = await _dataSource.TilesAndFeatures.QueryAsync<LayerLevelRow>(@"
+                levels = _dataSource.TilesAndFeatures.Query<LayerLevelRow>(@"
                 SELECT DISTINCT t.tileset as layer_level, m.display_name as display_name, m.kind as kind
                 FROM all_tiles t
                 LEFT JOIN tileset_metadata m ON m.tileset = t.tileset

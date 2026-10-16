@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 namespace EspGisViewer.Routing
 {
@@ -43,7 +42,7 @@ namespace EspGisViewer.Routing
             return _params[param];
         }
 
-        public async Task<bool> TryRoute(HttpContext ctx, string route, Dictionary<string, string> parameters)
+        public bool TryRoute(HttpContext ctx, string route, Dictionary<string, string> parameters)
         {
             // Check if the route is empty (or only a slash), if so, call the handler
             if (string.IsNullOrEmpty(route) || route.Trim() == "/")
@@ -52,7 +51,7 @@ namespace EspGisViewer.Routing
                 {
                     return false;
                 }
-                await _handler(ctx, parameters);
+                _handler(ctx, parameters);
                 return true;
             }
 
@@ -75,7 +74,7 @@ namespace EspGisViewer.Routing
 
                 var remainingRoute = route.Substring(routeSegment.Key.Length);
 
-                if (await subRouter.TryRoute(ctx, remainingRoute, parameters))
+                if (subRouter.TryRoute(ctx, remainingRoute, parameters))
                 {
                     return true;
                 }
@@ -99,7 +98,7 @@ namespace EspGisViewer.Routing
 
                 var remainingRoute = route.Substring(paramValue.Length);
 
-                if (await subRouter.TryRoute(ctx, remainingRoute, newParams))
+                if (subRouter.TryRoute(ctx, remainingRoute, newParams))
                 {
                     return true;
                 }
@@ -109,7 +108,7 @@ namespace EspGisViewer.Routing
             if (_handler != null && _handlerConsumesRest)
             {
                 // If the handler consumes the rest, we pass the remaining route
-                await _handler(ctx, parameters);
+                _handler(ctx, parameters);
                 return true;
             }
 

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
 using EspGisViewer.Data;
@@ -33,14 +32,14 @@ namespace EspGisViewer.Routes.Wfs
         }
 
         // /wfs
-        private async Task ProxyCalls(HttpContext context, Dictionary<string, string> parameters)
+        private void ProxyCalls(HttpContext context, Dictionary<string, string> parameters)
         {
             // wfs shouldn't specify a charset
             context.Response.Charset = string.Empty;
 
             if (context.Request.HttpMethod == "POST")
             {
-                await PostProxyCalls(context, parameters);
+                PostProxyCalls(context, parameters);
                 return;
             }
 
@@ -52,13 +51,13 @@ namespace EspGisViewer.Routes.Wfs
                 {
                     case "GetFeature":
                     case "GetFeatures":
-                        await _wfsGetFeatureController.HandleRequest(context, parameters, null);
+                        _wfsGetFeatureController.HandleRequest(context, parameters, null);
                         return;
                     case "DescribeFeatureType":
-                        await _wfsDescribeFeatureTypeController.HandleRequest(context, parameters, null);
+                        _wfsDescribeFeatureTypeController.HandleRequest(context, parameters, null);
                         return;
                     case "GetCapabilities":
-                        await _wfsGetCapabilitiesController.HandleRequest(context, parameters);
+                        _wfsGetCapabilitiesController.HandleRequest(context, parameters);
                         return;
                 }
             }
@@ -70,7 +69,7 @@ namespace EspGisViewer.Routes.Wfs
             context.Response.Write("Not Found");
         }
 
-        private async Task PostProxyCalls(HttpContext context, Dictionary<string, string> parameters)
+        private void PostProxyCalls(HttpContext context, Dictionary<string, string> parameters)
         {
 
             var queries = HttpUtility.ParseQueryString(context.Request.Url.Query);
@@ -106,7 +105,7 @@ namespace EspGisViewer.Routes.Wfs
             string xmlString;
             using (var stream = new StreamReader(xmlBodyStream))
             {
-                xmlString = await stream.ReadToEndAsync();
+                xmlString = stream.ReadToEnd();
             }
 
             Console.WriteLine($"XML Body: {xmlString}");
@@ -182,13 +181,13 @@ namespace EspGisViewer.Routes.Wfs
             {
                 case "GetFeature":
                 case "GetFeatures":
-                    await _wfsGetFeatureController.HandleRequest(context, parameters, queryMap);
+                    _wfsGetFeatureController.HandleRequest(context, parameters, queryMap);
                     return;
                 case "DescribeFeatureType":
-                    await _wfsDescribeFeatureTypeController.HandleRequest(context, parameters, queryMap);
+                    _wfsDescribeFeatureTypeController.HandleRequest(context, parameters, queryMap);
                     return;
                 case "GetCapabilities":
-                    await _wfsGetCapabilitiesController.HandleRequest(context, parameters);
+                    _wfsGetCapabilitiesController.HandleRequest(context, parameters);
                     return;
             }
         }

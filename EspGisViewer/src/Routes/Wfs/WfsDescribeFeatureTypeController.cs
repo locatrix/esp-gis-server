@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using SQLite;
@@ -81,7 +80,7 @@ namespace EspGisViewer.Routes.Wfs
             return $@"<xsd:element maxOccurs=""1"" minOccurs=""0"" name=""{column.Name}"" nillable=""true"" type=""xsd:string""/>";
         }
 
-        public async Task HandleRequest(HttpContext context, Dictionary<string, string> parameters, Dictionary<string, string> overrideQueries)
+        public void HandleRequest(HttpContext context, Dictionary<string, string> parameters, Dictionary<string, string> overrideQueries)
         {
             var tryParse = WfsParams.Parse(context.Request, context.Response, overrideQueries, _allowedType);
             if (!tryParse.HasValue)
@@ -90,7 +89,7 @@ namespace EspGisViewer.Routes.Wfs
             }
             var wfsParams = tryParse.Value;
 
-            await _dataSource.Refresh(true);
+            _dataSource.Refresh(true);
 
             var mainFeatureType = wfsParams.TypeNames.FirstOrDefault();
 
@@ -113,7 +112,7 @@ namespace EspGisViewer.Routes.Wfs
             var quotedTable = QuoteIdentifier(_allowedType);
 
             // PRAGMA table_info returns columns: cid, name, type, notnull, dflt_value, pk
-            var columns = await _dataSource.TilesAndFeatures.QueryAsync<Column>($"PRAGMA table_info({quotedTable})");
+            var columns = _dataSource.TilesAndFeatures.Query<Column>($"PRAGMA table_info({quotedTable})");
 
             var featureTypes = columns
                 .Where(c => !c.IsExcluded())

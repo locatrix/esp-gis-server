@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Security;
 using System.Text;
-using System.Threading.Tasks;
 using System.Web;
 using EspGisViewer.Data;
 using EspGisViewer.Routes.Realestate;
@@ -153,7 +152,7 @@ namespace EspGisViewer.Routes.Wfs
         private readonly DataSource _dataSource;
         private readonly string _allowedType;
         private readonly object _metadataLock = new object();
-        private readonly Dictionary<string, Task<FeatureMetadata>> _metadataTasks = new Dictionary<string, Task<FeatureMetadata>>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, FeatureMetadata> _metadata = new Dictionary<string, FeatureMetadata>(StringComparer.OrdinalIgnoreCase);
         private DataConnection _metadataConnection;
 
         public WfsGetFeatureController(DataSource dataSource, string allowedType)
@@ -162,9 +161,9 @@ namespace EspGisViewer.Routes.Wfs
             _allowedType = allowedType;
         }
 
-        public async Task HandleRequest(HttpContext context, Dictionary<string, string> parameters, Dictionary<string, string> overrideQueries)
+        public void HandleRequest(HttpContext context, Dictionary<string, string> parameters, Dictionary<string, string> overrideQueries)
         {
-            await _dataSource.Refresh(false);
+            _dataSource.Refresh(false);
 
             var tryParse = WfsParams.Parse(context.Request, context.Response, overrideQueries, _allowedType);
             if (!tryParse.HasValue)
@@ -222,7 +221,7 @@ namespace EspGisViewer.Routes.Wfs
             var responseOutputFormat = string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase)
                 ? "geojson"
                 : "xml";
-            var metadata = await GetMetadata(connection, querySource.TableName, responseOutputFormat);
+            var metadata = GetMetadata(connection, querySource.TableName, responseOutputFormat);
 
             if (!metadata.TableExists)
             {
@@ -271,7 +270,7 @@ namespace EspGisViewer.Routes.Wfs
                 {limitClause}
             ";
 
-            var features = await connection.QueryAsync<FeatureRow>(sql, queryArgs.ToArray());
+            var features = connection.Query<FeatureRow>(sql, queryArgs.ToArray());
             var numberMatched = features.Count;
 
             if (!string.Equals(outputFormat, "GEOJSON", StringComparison.OrdinalIgnoreCase))
@@ -285,7 +284,7 @@ namespace EspGisViewer.Routes.Wfs
                     {bboxPredicate}
                 ";
 
-                var totalCountResult = await connection.QueryAsync<FeatureCount>(countSql, countQueryArgs);
+                var totalCountResult = connection.Query<FeatureCount>(countSql, countQueryArgs);
                 if (totalCountResult.Count > 0)
                 {
                     numberMatched = totalCountResult[0].TotalCount;
@@ -301,44 +300,44 @@ namespace EspGisViewer.Routes.Wfs
             WriteXml(context, parameters, featureName, srsName, columnNames, featureOutputFormats, features, numberMatched);
         }
 
-        private async Task<bool> TableExists(DataConnection connection, string tableName)
+        private bool TableExists(DataConnection connection, string tableName)
         {
             var safeTableName = tableName.Replace("'", "''");
-            var tablePresence = await connection.QueryAsync<TablePresence>(
+            var tablePresence = connection.Query<TablePresence>(
                 $"SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type = 'table' AND name = '{safeTableName}'");
             return tablePresence.Count > 0 && tablePresence[0].TableCount > 0;
         }
 
-        private Task<FeatureMetadata> GetMetadata(DataConnection connection, string tableName, string outputFormat)
+        private FeatureMetadata GetMetadata(DataConnection connection, string tableName, string outputFormat)
         {
             lock (_metadataLock)
             {
                 if (!ReferenceEquals(_metadataConnection, connection))
                 {
                     _metadataConnection = connection;
-                    _metadataTasks.Clear();
+                    _metadata.Clear();
                 }
 
-                if (!_metadataTasks.TryGetValue(outputFormat, out var task) || task.IsFaulted || task.IsCanceled)
+                if (!_metadata.TryGetValue(outputFormat, out var metadata))
                 {
-                    task = LoadMetadata(connection, tableName, outputFormat);
-                    _metadataTasks[outputFormat] = task;
+                    metadata = LoadMetadata(connection, tableName, outputFormat);
+                    _metadata[outputFormat] = metadata;
                 }
-                return task;
+                return metadata;
             }
         }
 
-        private async Task<FeatureMetadata> LoadMetadata(DataConnection connection, string tableName, string outputFormat)
+        private FeatureMetadata LoadMetadata(DataConnection connection, string tableName, string outputFormat)
         {
-            if (!await TableExists(connection, tableName))
+            if (!TableExists(connection, tableName))
             {
                 return new FeatureMetadata();
             }
             return new FeatureMetadata
             {
                 TableExists = true,
-                ColumnNames = await LoadColumnNames(connection, tableName),
-                OutputFormats = await LoadFeatureOutputFormats(connection, outputFormat)
+                ColumnNames = LoadColumnNames(connection, tableName),
+                OutputFormats = LoadFeatureOutputFormats(connection, outputFormat)
             };
         }
 
@@ -349,21 +348,21 @@ namespace EspGisViewer.Routes.Wfs
             public Dictionary<string, FeatureOutputFormatRow> OutputFormats { get; set; }
         }
 
-        private async Task<HashSet<string>> LoadColumnNames(DataConnection connection, string tableName)
+        private HashSet<string> LoadColumnNames(DataConnection connection, string tableName)
         {
             var quotedTable = QuoteIdentifier(tableName);
-            var columnRows = await connection.QueryAsync<Column>($"PRAGMA table_info({quotedTable})");
+            var columnRows = connection.Query<Column>($"PRAGMA table_info({quotedTable})");
             return new HashSet<string>(columnRows.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
         }
 
-        private async Task<Dictionary<string, FeatureOutputFormatRow>> LoadFeatureOutputFormats(DataConnection connection, string outputFormat)
+        private Dictionary<string, FeatureOutputFormatRow> LoadFeatureOutputFormats(DataConnection connection, string outputFormat)
         {
-            if (!await TableExists(connection, FeatureOutputFormatsTableName))
+            if (!TableExists(connection, FeatureOutputFormatsTableName))
             {
                 return new Dictionary<string, FeatureOutputFormatRow>(StringComparer.OrdinalIgnoreCase);
             }
 
-            var rows = await connection.QueryAsync<FeatureOutputFormatRow>(/* sql */ @"
+            var rows = connection.Query<FeatureOutputFormatRow>(/* sql */ @"
                 SELECT column_name, source_format, formatter, options
                 FROM feature_output_formats
                                 WHERE table_name = ?
