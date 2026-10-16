@@ -13,11 +13,13 @@ namespace EspGisViewer.Data
 
         private readonly string _packagePath;
 
-        private TaskQueue<ISQLiteAsyncConnection> _tilesAndFeaturesDbQueue;
-
-        public FileSystemDataSource()
+        public FileSystemDataSource() : this(WebConfigurationManager.AppSettings.Get("EspGeopackagesPath") ?? ".")
         {
-            var absOrRelPath = WebConfigurationManager.AppSettings.Get("EspGeopackagesPath") ?? ".";
+        }
+
+        public FileSystemDataSource(string packagePath)
+        {
+            var absOrRelPath = packagePath ?? throw new ArgumentNullException(nameof(packagePath));
             // convert abs or rel path to absolute path
             if (!Path.IsPathRooted(absOrRelPath))
             {
@@ -41,7 +43,7 @@ namespace EspGisViewer.Data
             CheckForNewData().Wait();
         }
         
-        private FileSystemDataConnection _tilesAndFeatures;
+        private FileSystemDataConnection _tilesAndFeatures = new FileSystemDataConnection();
         public override DataConnection TilesAndFeatures
         {
             get => _tilesAndFeatures ?? throw new InvalidOperationException("Tiles data connection is not initialized. Ensure CheckForNewData has been called.");
@@ -80,29 +82,52 @@ namespace EspGisViewer.Data
 
             Console.WriteLine($"reading tiles and features from {tilesAndFeaturesPath}");
 
-            _tilesAndFeaturesDbQueue?.Request(async db =>
-            {
-                await db.CloseAsync();
-                return true; // return value doesn't matter
-            });
-
-            _tilesAndFeaturesDbQueue = new TaskQueue<ISQLiteAsyncConnection>(new SQLiteAsyncConnection(tilesAndFeaturesPath));
-            _tilesAndFeatures = new FileSystemDataConnection(_tilesAndFeaturesDbQueue);
+            _tilesAndFeatures = await _tilesAndFeatures.Replace(tilesAndFeaturesPath);
         }
     }
 
     class FileSystemDataConnection : DataConnection
     {
-        private readonly TaskQueue<ISQLiteAsyncConnection> _connectionQueue;
+        private sealed class ConnectionState
+        {
+            public string Path { get; set; }
+            public SQLiteAsyncConnection Database { get; set; }
+        }
+
+        private readonly TaskQueue<ConnectionState> _connectionQueue;
         
-        public FileSystemDataConnection(TaskQueue<ISQLiteAsyncConnection> connectionQueue)
+        public FileSystemDataConnection() : this(new TaskQueue<ConnectionState>(new ConnectionState()))
+        {
+        }
+
+        private FileSystemDataConnection(TaskQueue<ConnectionState> connectionQueue)
         {
             _connectionQueue = connectionQueue ?? throw new ArgumentNullException(nameof(connectionQueue), "Connection queue cannot be null.");
+        }
+
+        public Task<FileSystemDataConnection> Replace(string path)
+        {
+            return _connectionQueue.Request(async state =>
+            {
+                if (string.Equals(state.Path, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    return this;
+                }
+
+                if (state.Database != null)
+                {
+                    await state.Database.CloseAsync().ConfigureAwait(false);
+                }
+
+                state.Database = new SQLiteAsyncConnection(path);
+                state.Path = path;
+                return new FileSystemDataConnection(_connectionQueue);
+            });
         }
         
         public override Task<T> Use<T>(Util.Action<ISQLiteAsyncConnection, Task<T>> action)
         {
-            return _connectionQueue.Request(action);
+            return _connectionQueue.Request(state => action(state.Database));
         }
     }
 }

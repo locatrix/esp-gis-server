@@ -122,6 +122,71 @@ namespace EspGisViewer.DiffTests.Tests
         }
 
         [Test]
+        public async Task FileSystemRefreshSerializesReplacementWithRetainedConnections()
+        {
+            var directory = Path.Combine(Path.GetTempPath(), "esp-refresh-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            FileSystemDataSource source = null;
+            var release = new TaskCompletionSource<bool>();
+            Task<int> active = null;
+            Task refresh = null;
+            try
+            {
+                await CreatePackage(Path.Combine(directory, "test-combined-20261015.gpkg"), 1);
+                source = new FileSystemDataSource(directory);
+                var retained = source.TilesAndFeatures;
+                await source.Refresh(true);
+                Assert.AreSame(retained, source.TilesAndFeatures);
+
+                var entered = new TaskCompletionSource<bool>();
+                active = retained.Use(async database =>
+                {
+                    entered.SetResult(true);
+                    await release.Task;
+                    return await database.ExecuteScalarAsync<int>("SELECT value FROM marker");
+                });
+                await entered.Task;
+                await CreatePackage(Path.Combine(directory, "test-combined-20261016.gpkg"), 2);
+                refresh = source.Refresh(true);
+                Assert.IsFalse(refresh.IsCompleted);
+                release.SetResult(true);
+                Assert.AreEqual(1, await active);
+                await refresh;
+                Assert.AreNotSame(retained, source.TilesAndFeatures);
+
+                var requests = Enumerable.Range(0, 64).Select(async index =>
+                {
+                    await source.Refresh(true);
+                    var connection = index % 2 == 0 ? retained : source.TilesAndFeatures;
+                    Assert.AreEqual(2, await connection.Use(database => database.ExecuteScalarAsync<int>("SELECT value FROM marker")));
+                });
+                await Task.WhenAll(requests);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (active != null) await active;
+                if (refresh != null) await refresh;
+                if (source != null) await source.TilesAndFeatures.Use(database => database.CloseAsync());
+                Directory.Delete(directory, true);
+            }
+        }
+
+        private static async Task CreatePackage(string path, int value)
+        {
+            var database = new SQLiteAsyncConnection(path);
+            try
+            {
+                await database.ExecuteAsync("CREATE TABLE marker (value INTEGER)");
+                await database.ExecuteAsync("INSERT INTO marker VALUES (?)", value);
+            }
+            finally
+            {
+                await database.CloseAsync();
+            }
+        }
+
+        [Test]
         public async Task QueueRemainsUsableAfterFailure()
         {
             var queue = new TaskQueue<int>(42);
